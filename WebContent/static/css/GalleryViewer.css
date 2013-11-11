@@ -1,0 +1,175 @@
+﻿html {
+    color: #C0C0C0;
+    background: #333333;
+    font-family: Arial,Helvetica,Geneva,sans-serif;
+    font-size: 12px;
+}
+
+/*
+body, div, dl, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, h6, pre, code, form, fieldset, legend, input, textarea, p, blockquote, th, td, article, aside, canvas, details, figcaption, figure, footer, header, hgroup, menu, nav, section, summary, time, mark, audio, video {
+    margin: 0;
+    padding: 0;
+}
+*/
+
+/* for older browser to render the stuff properly.
+header, section, footer, aside, article, figure, nav
+ { 
+    display:block;
+ } 
+*/
+
+body {
+    height: auto;
+        padding: 0px;
+    margin: 0px;
+}
+
+
+ul {
+    list-style-type:none;
+    list-style-image:none;
+    padding: 0px;
+    margin: 0px;
+}
+
+
+a
+{
+    height:100%;
+    letter-spacing: 0.08em;
+    text-decoration:none;
+    color:#C0C0C0;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    outline-style: none;
+    outline-width: medium;
+    outline-color: invert;
+    line-height:40px;
+    float:left;
+    display:block;
+}
+
+a:hover 
+{
+    background-color: #444444;
+}
+
+li {
+    height:100%;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    line-height:40px;
+    display: block;
+}
+
+
+
+
+header.HeaderStyle {
+    width: 100%;
+    font-size: 15px;
+    line-height: 15px;
+    display: block;
+    background-color: #475878;
+    padding: 10px;
+}
+
+h1.HeaderStyle {
+    font-size:20px;
+}
+
+span.HeaderStyle  {
+    font-size:13px;
+}
+
+nav {
+    width:100%;
+    margin-top: 2px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    margin-left: 2px;
+    float: left;
+    clear: both;
+}
+
+ul.GroupingStyle  {
+    float: left;
+}
+
+/*
+nav.ImageNavStyle {
+    display: block;
+    float: right;
+    margin-top: 20px;
+    margin-right: 2px;
+    margin-bottom: 20px;
+    margin-left: auto;
+}
+    */
+
+ul.ImageNavStyle  {
+    float: right;
+}
+
+
+section.ImagesPaneStyle {
+    margin: 0px;
+    padding: 10px;
+    align-items: center;
+    height: auto;
+    width: 100%;
+    align-content: center;
+    vertical-align: top;
+}
+
+article.ImagesArticleStyle  {
+    cursor: -webkit-grab;
+    margin: 2px;
+    padding: 0px;
+    height: 240px;
+    width: 200px;
+    float:left;
+}
+
+div.ImagesArticleStyle {
+    visibility:visible;
+    text-align: center;
+    background-color: #333333;
+    width:200px;
+    height:40px;
+}
+
+article.ImagesArticleNoNameStyle  {
+    cursor: -webkit-grab;
+    margin: 2px;
+    padding: 0px;
+    height: 200px;
+    width: 200px;
+    float:left;
+}
+
+div.ImagesArticleNoNameStyle {
+    display:inline;
+    visibility:hidden;
+    text-align: center;
+    background-color: #333333;
+    width:200px;
+    height:0px;
+}
+
+.thumbStyle {
+    height: 200px;
+    width: 200px;
+    border: 1px solid #333333;
+}
+
+.thumbStyle:hover {
+    height: 200px;
+    width: 200px;
+    border: 1px solid #C0C0C0;
+}

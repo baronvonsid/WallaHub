@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.example.org/TagList"
+	xmlns:tns="http://www.example.org/TagList" elementFormDefault="qualified">
+
+	<element name="TagList">
+		<complexType>
+				<sequence>
+					<element name="TagRef" maxOccurs="unbounded" minOccurs="0">
+						<complexType>
+							<attribute name="id" type="long"></attribute>
+							<attribute name="count" type="int"></attribute>
+							<attribute name="name" type="string"></attribute>
+							<attribute name="desc" type="string"></attribute>
+						</complexType>
+					</element>
+				</sequence>
+			<attribute type="dateTime" name="lastChanged" />
+		</complexType>
+	</element>
+
+</schema>
