@@ -703,7 +703,7 @@ public class ImageService {
     		}
     			
 			//Archive original image
-    		ImageUtilityHelper.SaveOriginal(userId, uploadedFile.getPath(), userOriginalFolderPath.toString(), imageId, imageMeta.getFormat());
+    		String originalImagePath = ImageUtilityHelper.SaveOriginal(userId, uploadedFile.getPath(), userOriginalFolderPath.toString(), imageId, imageMeta.getFormat());
     		
 			//Make one initial copy, to drive subsequent resizing and also to orient correctly.
     		File userMainImageFolder = Paths.get(destinationRoot, "Saved", Long.toString(userId), "1920x1080").toFile();
@@ -713,16 +713,16 @@ public class ImageService {
     		}
     		ResizeAndSaveFile(userId, uploadedFile.getPath(), imageMeta, 1920, 1080, true);
 
-			String mainImagePath = GetFilePathIfExists(userId, "1920x1020", imageId);
+			String mainImagePath = GetFilePathIfExists(userId, "1920x1080", imageId);
 			if (mainImagePath.isEmpty())
 			{
-				String error = "Unexpected error retrieving a resized image in the folder: 1920x1020.  ImageId:" + imageId;
+				String error = "Unexpected error retrieving a resized image in the folder: 1920x1080.  ImageId:" + imageId;
 				throw new WallaException("ImageService", "SetupNewImage", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
     				
 			//Load image meta into memory and enrich properties.
 			//TODO switch to wired class.
-			String response = ImageUtilityHelper.EnrichImageMetaFromFileData(userOriginalFolderPath.toString(), imageMeta);
+			String response = ImageUtilityHelper.EnrichImageMetaFromFileData(originalImagePath, imageMeta);
 			if (!response.equals("OK"))
 				throw new WallaException("ImageService", "SetupNewImage", response, 0); 
             

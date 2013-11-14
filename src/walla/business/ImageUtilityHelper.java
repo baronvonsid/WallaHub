@@ -397,11 +397,13 @@ public final class ImageUtilityHelper
 		cmd.run(op);
 	}
 	
-	public static void SaveOriginal(long userId, String fromFilePath, String toFolderPath, long imageId, String extension) throws IOException, InterruptedException, IM4JavaException
+	public static String SaveOriginal(long userId, String fromFilePath, String toFolderPath, long imageId, String extension) throws IOException, InterruptedException, IM4JavaException
 	{		
 		Path destinationFile = Paths.get(toFolderPath, imageId + "." + extension);
 
 		UserTools.Copyfile(fromFilePath, destinationFile.toString());
+		
+		return destinationFile.toString();
 	}
 	
 	public static void SaveReducedSizeImages(long userId, String sourceFilePath, String destinationFilePath, ImageMeta imageMeta, int targetWidth, int targetHeight) throws IOException, InterruptedException, IM4JavaException
