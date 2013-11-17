@@ -25,10 +25,67 @@
          <script src="../../../../static/scripts/html5-format-ie8.js"></script>
     <![endif]-->
 
-    <script src="../../../../static/scripts/jquery-2.0.3.js"></script>
+    <link href="../../../../static/css/TemplateExt-Standard.css" rel="stylesheet" />
+    <link href="../../../../static/css/custom-${css}/jquery-ui.min.css" rel="stylesheet" />
+    <link href="../../../../static/css/custom-${css}/ThemeExt-Standard.css" rel="stylesheet" />
+
+    <!-- Browser bar icon (16x16) -->
+    <link href="../../../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
+
+</head>
+
+<body id="galleryBody" data-images-fetchsize="50" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
+        <header id="pageHeader" class="HeaderStyle">
+        <h1><img src="../../../../static/images/fotowallabrowser.png" height="16" width="16" />${name}</h1>
+        <span class="HeaderStyle">${desc}</span>
+    </header>
+
+	<nav id="pageNavigations">
+<%
+int groupingType = Integer.valueOf((String)request.getAttribute("groupingType").toString());
+if (groupingType > 0)
+{
+
+	List<Gallery.Sections.SectionRef> sectionList = (List<Gallery.Sections.SectionRef>)request.getAttribute("sectionList");
+	if (sectionList != null)
+	{
+		%><nav id="sectNavHor"><%
+		for (Iterator<Gallery.Sections.SectionRef> sectionIterater = sectionList.iterator() ; sectionIterater.hasNext();)
+		{
+			Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
+			%>
+		    <input type="radio" id="section<%=currentSectionRef.getSectionId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getSectionId()%>" />
+		    <label for="section<%=currentSectionRef.getSectionId()%>"><%=currentSectionRef.getName()%></label>
+			<%
+		}
+		%></nav><%
+	}
+}
+%>
+
+        <nav id="imageNav">
+            <span id="imageNavTextTotal">2001 images</span>
+            <button id="imageNavFirst">first</button>
+            <button id="imageNavPrevious">previous</button>
+            <span id="imageNavTextCursor">0 to 100</span>
+            <button id="imageNavNext">next</button>
+            <button id="imageNavLast">last</button>
+        </nav>
+	</nav>
+	
+	<div style="clear: both;"></div>
+	
+<div class="ImagesPaneStyle" id="imagesPaneContainer">
+	    <section id="imagesPane" class="ImagesPaneStyle" data-section-id="0" data-section-image-count="-1" data-images-first="0" data-images-last="0">
+
+	    </section>
+</div>
+    
+    
+    	    <script src="../../../../static/scripts/jquery-2.0.3.js"></script>
     <script src="../../../../static/scripts/jquery-ui-1.10.3.custom.js"></script>
     <script>
-    var numberOfImages = 0;
+        var numberOfImages = 0;
 
     $(document).ready
     (
@@ -42,7 +99,7 @@
             $("#sectNavHor").buttonset();
             $("#sectNavHor > input").button({ icons: { primary: "ui-icon-bullet" } });
 
-
+            ResizeDiv(true);
 
             /* Event hooks */
 
@@ -217,61 +274,7 @@
         alert(errorThrown.toString());
     }
     </script>
-
-    <link href="../../../../static/css/GalleryViewerExtension.css" rel="stylesheet" />
-    <link href="../../../../static/css/ui-darkness/jquery-ui.min.css" rel="stylesheet" />
-
-    <!-- Browser bar icon (16x16) -->
-    <link href="../../../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
-
-</head>
-
-<body id="galleryBody" data-images-fetchsize="10" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
-        <header id="pageHeader" class="HeaderStyle">
-        <h1><img src="../../../../static/images/fotowallabrowser.png" height="16" width="16" />${name}</h1>
-        <span class="HeaderStyle">${desc}</span>
-    </header>
-
-	<nav id="pageNavigations">
-<%
-int groupingType = Integer.valueOf((String)request.getAttribute("groupingType").toString());
-if (groupingType > 0)
-{
-
-	List<Gallery.Sections.SectionRef> sectionList = (List<Gallery.Sections.SectionRef>)request.getAttribute("sectionList");
-	if (sectionList != null)
-	{
-		%><nav id="sectNavHor"><%
-		for (Iterator<Gallery.Sections.SectionRef> sectionIterater = sectionList.iterator() ; sectionIterater.hasNext();)
-		{
-			Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
-			%>
-		    <input type="radio" id="section<%=currentSectionRef.getSectionId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getSectionId()%>" />
-		    <label for="section<%=currentSectionRef.getSectionId()%>"><%=currentSectionRef.getName()%></label>
-			<%
-		}
-		%></nav><%
-	}
-}
-%>
-
-        <nav id="imageNav">
-            <span id="imageNavTextTotal">2001 images</span>
-            <button id="imageNavFirst">first</button>
-            <button id="imageNavPrevious">previous</button>
-            <span id="imageNavTextCursor">0 to 100</span>
-            <button id="imageNavNext">next</button>
-            <button id="imageNavLast">last</button>
-        </nav>
-	</nav>
-	
-	<div style="clear: both;"></div>
-	
-<div class="ImagesPaneStyle" id="imagesPaneContainer">
-	    <section id="imagesPane" class="ImagesPaneStyle" data-section-id="0" data-section-image-count="-1" data-images-first="0" data-images-last="0">
-
-	    </section>
-</div>
+    
     
     
 </body>

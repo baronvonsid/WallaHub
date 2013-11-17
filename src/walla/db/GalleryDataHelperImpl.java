@@ -47,7 +47,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		String sql = "INSERT INTO [dbo].[Gallery] ([GalleryId],[Name],[Description],[UrlComplex],"
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
 				+ "[TotalImageCount],[LastUpdated],[RecordVersion],[UserId])"
-				+ "VALUES (?,?,?,?,?,?,?,-1,GetDate(),?,?)";
+				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,GetDate(),?,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -72,8 +72,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ps.setInt(8, newGallery.getGroupingType());
 			ps.setInt(9, newGallery.getStyleId());
 			ps.setInt(10, newGallery.getPresentationId());
-			ps.setInt(8, 1);
-			ps.setLong(9, userId);
+			ps.setInt(11, 1);
+			ps.setLong(12, userId);
 			
 			//Execute insert statement.
 			returnCount = ps.executeUpdate();
@@ -669,13 +669,14 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
 
+			if (galleryList == null)
+			{
+				galleryList = new GalleryList();
+				List<GalleryList.GalleryRef> temp = galleryList.getGalleryRef();
+			}
+			
 			while (resultset.next())
 			{
-				if (galleryList == null)
-				{
-					galleryList = new GalleryList();
-				}
-				
 				GalleryList.GalleryRef newGalleryRef = new GalleryList.GalleryRef(); 
 				newGalleryRef.setId(resultset.getLong(1));
 				newGalleryRef.setName(resultset.getString(2));

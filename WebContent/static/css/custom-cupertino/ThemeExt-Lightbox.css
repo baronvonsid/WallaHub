@@ -1,0 +1,19 @@
+﻿html {
+    color: #1c94c4;
+    background: #F5F5F5;
+    font-family: Helvetica;
+    font-size: 12px;
+}
+
+h1.HeaderStyle {
+    font-size:2em;
+    margin: 10px;
+}
+
+span.HeaderStyle  {
+    font-size:1.2em;
+}
+
+header.HeaderStyle {
+    margin: 10px;
+}

@@ -88,7 +88,7 @@ public class ImageController {
 	}
 	*/
 	
-	private final String destinationRoot = "D:\\WallaRepo\\";
+	private final String destinationRoot = "C:\\temp\\WallaRepo\\";
 	private final long maxImageSize = 10000000;
 	private static final Logger meLogger = Logger.getLogger(ImageController.class);
 

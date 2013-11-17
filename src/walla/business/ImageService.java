@@ -37,7 +37,7 @@ import org.im4java.process.*;
 public class ImageService {
 
 	private final String graphicsMagickPath="C:\\Program Files\\GraphicsMagick-1.3;";
-	private final String destinationRoot = "D:\\WallaRepo\\";
+	private final String destinationRoot = "C:\\temp\\WallaRepo\\";
 	private GalleryDataHelperImpl galleryDataHelper;	
 	private CategoryDataHelperImpl categoryDataHelper;
 	private TagDataHelperImpl tagDataHelper;

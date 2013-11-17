@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
-
+import java.util.UUID;
 import javax.servlet.ServletOutputStream;
 
 import org.apache.log4j.Logger;
@@ -21,14 +21,14 @@ public final class UserTools {
 	{
 		//Check user is logged on and return user Id.
 		
-		if (userName.equals("simon"))
+		if (userName.equals("simon2345"))
 		{
 			return -1;
 			
 		}
 		else
 		{
-			return 1;
+			return 100001;
 		}
 	}
 	
@@ -131,8 +131,8 @@ public final class UserTools {
 	
 	public static String GetComplexUrl()
 	{
-		return "xxxxxxxxxxxx";
-	
+		UUID identifier = java.util.UUID.randomUUID();
+		return identifier.toString();
 	}
 	
 	public static String GetCssName(int styleId)
@@ -141,15 +141,20 @@ public final class UserTools {
 		
 		switch (styleId)
 		{
+			case 0:
+				cssName = "darkness";
+				break;
 			case 1:
-				cssName = "ui-darkness";
+				cssName = "lightness";
 				break;
 			case 2:
-				cssName = "ui-lightness";
+				cssName = "cupertino";
+				break;
+			case 3:
+				cssName = "blacktie";
 				break;
 		}
 		return cssName;
-		
 	}
 	
 	public static String GetJspName(int presentationId)
@@ -158,8 +163,11 @@ public final class UserTools {
 		
 		switch (presentationId)
 		{
-			case 1:
+			case 0:
 				jspName = "GalleryViewer-Standard";
+				break;
+			case 1:
+				jspName = "GalleryViewer-Lightbox";
 				break;
 		}
 		return jspName;

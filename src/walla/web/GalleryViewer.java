@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.ModelAndView;
@@ -51,7 +52,7 @@ public class GalleryViewer {
 	
 	@Autowired
 	private GalleryService galleryService;
-	
+	 
 	@Autowired
 	private ImageService imageService;
 	
@@ -59,14 +60,22 @@ public class GalleryViewer {
 	@RequestMapping(value = { "/{userName}/gallery/{galleryName}" }, method = { RequestMethod.GET }, produces=MediaType.APPLICATION_XHTML_XML_VALUE )
 	public String GetGalleryViewer(
 			@PathVariable("galleryName") String galleryName,
+			@RequestParam(value="key", required=false) String urlComplex,
 			@PathVariable("userName") String userName,
 			Model model,
 			HttpServletResponse httpResponse)
 	{
+		String responseJsp = "GalleryViewerError";
 		try
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryViewer request received, User: " + userName + ", Gallery:" + galleryName);}
 
+			boolean checkUrl = false;
+			boolean securityPassed = false;
+			
+			if (urlComplex != null)
+				checkUrl = true;
+			
 			//Retrieve user id and check user is valid for the login.
 			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
 			if (userId < 0)
@@ -74,33 +83,71 @@ public class GalleryViewer {
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
 			}
 	
-			String responseJsp = null;
 			CustomResponse customResponse = new CustomResponse();
 			Gallery gallery = galleryService.GetGalleryMeta(userId, galleryName, customResponse);
 			if (customResponse.getResponseCode() == HttpStatus.OK.value())
 			{
-				//TODO - switch to cached item.
-				model.addAttribute("css", UserTools.GetCssName(gallery.getStyleId())); 
-				model.addAttribute("groupingType", gallery.getGroupingType()); /* 0-None, 1-category, 2-tag */
-				model.addAttribute("sectionList", gallery.getSections().getSectionRef()); 
-				model.addAttribute("totalImageCount", gallery.getTotalImageCount()); 
+				if (checkUrl)
+				{
+					if (urlComplex.equalsIgnoreCase(gallery.getUrlComplex()))
+						securityPassed = true;
+					meLogger.debug("Complex url checked out for gallery, user, url combination.");
+				}
+				else
+				{
+					meLogger.info("Password protected"); 
+					securityPassed = true;
+				}
 				
-				//Get gallery viewer style
-				responseJsp = UserTools.GetJspName(gallery.getPresentationId());
-				
-				//Get gallery name and description
-				model.addAttribute("name", gallery.getName()); 
-				model.addAttribute("desc", gallery.getDesc());
+				if (securityPassed)
+				{
+					model.addAttribute("userId", userId); 
+					model.addAttribute("userName", userName); 
+					
+					//TODO - switch to cached item.
+					model.addAttribute("css", UserTools.GetCssName(gallery.getStyleId())); 
+					model.addAttribute("groupingType", gallery.getGroupingType()); /* 0-None, 1-category, 2-tag */
+					if (gallery.getGroupingType().intValue() > 0)
+						model.addAttribute("sectionList", gallery.getSections().getSectionRef());
+					
+					model.addAttribute("totalImageCount", gallery.getTotalImageCount()); 
+					
+					//Get gallery viewer style
+					responseJsp = UserTools.GetJspName(gallery.getPresentationId());
+					
+					//Get gallery name and description
+					model.addAttribute("name", gallery.getName()); 
+					model.addAttribute("desc", gallery.getDesc());
+					
+					if (responseJsp.equals("GalleryViewer-Lightbox"))
+					{
+						int imageListMax = 1000;
+						ImageList imageList = imageService.GetImageList(userId, "gallery", 
+								galleryName, -1, 0, 0, imageListMax, null, customResponse);
+
+						if (customResponse.getResponseCode() == HttpStatus.OK.value())
+						{
+							model.addAttribute("imageList", imageList);
+						}
+					}
+				}
+				else
+				{
+					//No match, no session created.
+					//Pause for 1 second and return error.
+					Thread.sleep(1000);
+					customResponse.setResponseCode(HttpStatus.UNAUTHORIZED.value());
+					model.addAttribute("errorMessage", "Gallery could not be loaded.  The error code received was: " + customResponse.getResponseCode()); 
+				}
 			}
 			else
 			{
-				responseJsp = "GalleryViewerError";
 				model.addAttribute("errorMessage", "Gallery could not be loaded.  The error code received was: " + customResponse.getResponseCode()); 
 			}
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryViewer request completed, User:" + userName.toString() + ", Gallery:" + galleryName + " Response code: " + customResponse.getResponseCode());}
 
-			httpResponse.setStatus(customResponse.getResponseCode());
+			//httpResponse.setStatus(customResponse.getResponseCode());
 			
 			return responseJsp;
 		}
@@ -108,10 +155,11 @@ public class GalleryViewer {
 			meLogger.error("Received Exception in GetGalleryViewer", ex);
 			model.addAttribute("errorMessage", "Gallery could not be loaded.  Error message: " + ex.getMessage()); 
 			
-			return "GalleryViewerError";
+			return responseJsp;
 		}
 	}
-
+	
+	
 	//, headers={"Accept-Charset=utf-8"}
 	
 	//  GET /{userName}/gallery/{galleryName}/{sectionId}/{imageCursor}/{size}
