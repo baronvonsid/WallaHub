@@ -46,8 +46,9 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 	{
 		String sql = "INSERT INTO [dbo].[Gallery] ([GalleryId],[Name],[Description],[UrlComplex],"
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
-				+ "[TotalImageCount],[LastUpdated],[RecordVersion],[UserId])"
-				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,GetDate(),?,?)";
+				+ "[TotalImageCount],[LastUpdated],[RecordVersion],"
+				+ "[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],[ShowImageDesc],[ShowImageMeta],[UserId]) "
+				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,GetDate(),1,?,?,?,?,?,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -72,8 +73,13 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ps.setInt(8, newGallery.getGroupingType());
 			ps.setInt(9, newGallery.getStyleId());
 			ps.setInt(10, newGallery.getPresentationId());
-			ps.setInt(11, 1);
-			ps.setLong(12, userId);
+			
+			ps.setBoolean(11, newGallery.isShowGalleryName());
+			ps.setBoolean(12, newGallery.isShowGalleryDesc());
+			ps.setBoolean(13, newGallery.isShowImageName());
+			ps.setBoolean(14, newGallery.isShowImageDesc());
+			ps.setBoolean(15, newGallery.isShowImageMeta());
+			ps.setLong(16, userId);
 			
 			//Execute insert statement.
 			returnCount = ps.executeUpdate();
@@ -277,7 +283,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			//Process an update to the main record.
 			String updateVersionSql = "UPDATE [dbo].[Gallery] SET [Name] = ?, [Description] = ?, [AccessType] = ?, [Password] = ?,"
 					+ "[SelectionType] = ?, [GroupingType] = ?,[StyleId] = ?, [TotalImageCount] = -1,[PresentationId] = ?, [LastUpdated] = GetDate(),"
-					+ "[RecordVersion] = [RecordVersion] + 1 WHERE [UserId] = ? AND [GalleryId] = ? AND [RecordVersion] = ?";
+					+ "[RecordVersion] = [RecordVersion] + 1, [ShowGalleryName] = ?,[ShowGalleryDesc] = ?,[ShowImageName] = ?,"
+					+ "[ShowImageDesc] = ?,[ShowImageMeta] = ? WHERE [UserId] = ? AND [GalleryId] = ? AND [RecordVersion] = ?";
 
 			ps = conn.prepareStatement(updateVersionSql);
 			ps.setString(1, existingGallery.getName());
@@ -289,9 +296,15 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ps.setInt(7, existingGallery.getStyleId());
 			ps.setInt(8, existingGallery.getPresentationId());
 			
-			ps.setLong(9, userId);
-			ps.setLong(10, existingGallery.getId());
-			ps.setLong(11, existingGallery.getVersion());
+			ps.setBoolean(9, existingGallery.isShowGalleryName());
+			ps.setBoolean(10, existingGallery.isShowGalleryDesc());
+			ps.setBoolean(11, existingGallery.isShowImageName());
+			ps.setBoolean(12, existingGallery.isShowImageDesc());
+			ps.setBoolean(13, existingGallery.isShowImageMeta());
+			
+			ps.setLong(14, userId);
+			ps.setLong(15, existingGallery.getId());
+			ps.setLong(16, existingGallery.getVersion());
 			
 			//Execute update and check response.
 			returnCount = ps.executeUpdate();
@@ -306,17 +319,6 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 
 			
 			DeleteGallerySubElements(conn, existingGallery.getId());
-			/*
-			ds = conn.createStatement();
-			ds.addBatch("DELETE FROM [dbo].[GalleryUser] WHERE [GalleryId] = " + existingGallery.getId());
-			ds.addBatch("DELETE FROM [dbo].[GalleryCategory] WHERE [GalleryId] = " + existingGallery.getId());
-			ds.addBatch("DELETE FROM [dbo].[GallerySort] WHERE [GalleryId] = " + existingGallery.getId());
-			ds.addBatch("DELETE FROM [dbo].[GalleryTag] WHERE [GalleryId] = " + existingGallery.getId());
-			
-			//Execute statement and ignore counts.
-			ds.executeBatch();
-			ds.close();
-			*/
 			
 			UpdateGallerySubElements(conn, existingGallery, existingGallery.getId());
 			
@@ -488,7 +490,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			String selectSql = "SELECT [GalleryId],[Name],[Description],[UrlComplex],[AccessType],"
 				+ "[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],[TotalImageCount],"
-				+ "[LastUpdated],[RecordVersion] FROM [dbo].[Gallery]"
+				+ "[LastUpdated],[RecordVersion],[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],"
+				+ "[ShowImageDesc],[ShowImageMeta] FROM [dbo].[Gallery]"
 				+ " WHERE [UserId] = ? AND [Name]= ?";
 			
 			ps = conn.prepareStatement(selectSql);
@@ -519,6 +522,11 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			gallery.setLastChanged(xmlOldGreg);
 			gallery.setVersion(resultset.getInt(13));
+			gallery.setShowGalleryName(resultset.getBoolean(14));
+			gallery.setShowGalleryDesc(resultset.getBoolean(15));
+			gallery.setShowImageName(resultset.getBoolean(16));
+			gallery.setShowImageDesc(resultset.getBoolean(17));
+			gallery.setShowImageMeta(resultset.getBoolean(18));
 			
 			GetGallerySubElements(userId, conn, gallery);
 			
@@ -618,14 +626,14 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			{
 				if (gallery.getGroupingType() == 1)
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],C.[Name],C.[Description] FROM [dbo].[GallerySection] GS "
-							+ "INNER JOIN [Category] C ON GS.[SectionId] = C.[CategoryId] "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(C.[Name],'No Grouping'),COALESCE(C.[Description],'') FROM [dbo].[GallerySection] GS "
+							+ "LEFT OUTER JOIN [Category] C ON GS.[SectionId] = C.[CategoryId] "
 							+ "WHERE GS.[GalleryId]= ?";
 				}
 				else
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],T.[Name],T.[Description] FROM [dbo].[GallerySection] GS "
-							+ "INNER JOIN [Tag] T ON GS.[SectionId] = T.[TagId] "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(T.[Name],'No Grouping'),COALESCE(T.[Description],'') FROM [dbo].[GallerySection] GS "
+							+ "LEFT OUTER JOIN [Tag] T ON GS.[SectionId] = T.[TagId] "
 							+ "WHERE GS.[GalleryId]= ?";
 				}
 				
@@ -664,8 +672,15 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount] FROM "
-					+ "Gallery G WHERE G.[UserId] = " + userId;
+			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount], COALESCE(GS.[SectionId],0) AS SectionId, GS.[ImageCount], " 
+			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(C.[Name],'No Grouping') WHEN G.[GroupingType] = 2 THEN COALESCE(T.[Name],'No Grouping') ELSE '' END AS SectionName "
+			+ "FROM Gallery G "
+			+ "LEFT OUTER JOIN GallerySection GS ON G.[GalleryId] = GS.[GalleryId] "
+			+ "LEFT OUTER JOIN Category C ON GS.[SectionId] = C.[CategoryId] "
+			+ "LEFT OUTER JOIN Tag T ON GS.[SectionId] = T.[TagId] "
+			+ "WHERE G.[UserId] = " + userId
+			+ " ORDER BY G.[Name], SectionName";
+
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
 
@@ -675,15 +690,47 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				List<GalleryList.GalleryRef> temp = galleryList.getGalleryRef();
 			}
 			
+			long currentGalleryId = 0;
+			
 			while (resultset.next())
 			{
-				GalleryList.GalleryRef newGalleryRef = new GalleryList.GalleryRef(); 
-				newGalleryRef.setId(resultset.getLong(1));
-				newGalleryRef.setName(resultset.getString(2));
-				newGalleryRef.setDesc(resultset.getString(3));
-				newGalleryRef.setUrlComplex(resultset.getString(4));
-				newGalleryRef.setCount(resultset.getInt(5));
-				galleryList.getGalleryRef().add(newGalleryRef);
+				if (currentGalleryId != resultset.getLong(1))
+				{
+					//new gallery object to process
+					GalleryList.GalleryRef newGalleryRef = new GalleryList.GalleryRef();
+					currentGalleryId = resultset.getLong(1);
+					newGalleryRef.setId(currentGalleryId);
+					newGalleryRef.setName(resultset.getString(2));
+					newGalleryRef.setDesc(resultset.getString(3));
+					newGalleryRef.setUrlComplex(resultset.getString(4));
+					newGalleryRef.setCount(resultset.getInt(5));
+					
+					long sectionId = resultset.getLong(6);
+					if (sectionId > 0)
+					{
+						List<GalleryList.GalleryRef.SectionRef> sectionList = newGalleryRef.getSectionRef();
+						
+						GalleryList.GalleryRef.SectionRef section = new GalleryList.GalleryRef.SectionRef();
+						section.setId(sectionId);
+						section.setImageCount(resultset.getInt(7));
+						section.setName(resultset.getString(8));
+						sectionList.add(section);
+					}
+					
+					galleryList.getGalleryRef().add(newGalleryRef);
+				}
+				else
+				{
+					//just add a section to the existing gallery
+					GalleryList.GalleryRef existingGalleryRef = galleryList.getGalleryRef().get(galleryList.getGalleryRef().size() - 1);
+
+					GalleryList.GalleryRef.SectionRef section = new GalleryList.GalleryRef.SectionRef();
+					section.setId(resultset.getLong(6));
+					section.setImageCount(resultset.getInt(7));
+					section.setName(resultset.getString(8));
+					existingGalleryRef.getSectionRef().add(section);
+				}
+
 			}
 			
 			resultset.close();

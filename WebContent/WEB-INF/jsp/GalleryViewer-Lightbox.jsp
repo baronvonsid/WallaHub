@@ -30,21 +30,38 @@
     <link rel="stylesheet" href="../../../../static/css/blueimp/blueimp-gallery-indicator.css" />
     <link rel="stylesheet" href="../../../../static/css/blueimp/blueimp-gallery.css" />
     <link href="../../../../static/css/custom-${css}/ThemeExt-Lightbox.css" rel="stylesheet" />
+    <link href="../../../../static/css/TemplateExt-Lightbox.css" rel="stylesheet" />
 
     <!-- Browser bar icon (16x16) -->
     <link href="../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
 
 </head>
 
+<%
+	boolean showGalleryName = Boolean.parseBoolean(request.getAttribute("showGalleryName").toString());
+	boolean showGalleryDesc = Boolean.parseBoolean(request.getAttribute("showGalleryDesc").toString());
+	boolean showImageName = Boolean.parseBoolean(request.getAttribute("showImageName").toString());
+	boolean showImageDesc = Boolean.parseBoolean(request.getAttribute("showImageDesc").toString());
+%>
 
-<body id="galleryBody" data-images-fetchsize="1000" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
-        <header id="pageHeader" class="HeaderStyle">
-        <h1><img src="../../../../static/images/fotowallabrowser.png" height="16" width="16" />${name}</h1>
-        <span class="HeaderStyle">${desc}</span>
-    </header>
+<body id="galleryBody" data-images-fetchsize="576" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
 
-    <div style="clear: both;"></div>
+        
+        <nav id="pageNavigations">
 
+        <%if (showGalleryName || showGalleryDesc) {%>
+        	<header id="pageHeader" class="HeaderStyle">
+        	<%if (showGalleryName) {%>
+        		<h1>${name}</h1>
+        	<%} if (showGalleryDesc) { %>
+        		<span class="HeaderStyle">${desc}</span>
+        	<%}%>
+        	</header>
+        <%}%>
+        
+       	<div style="clear: both;"></div>
+       	</nav>
+        
     <div id="blueimp-gallery" class="blueimp-gallery">
         <div class="slides"></div>
         <h3 class="title"></h3>
@@ -55,7 +72,7 @@
         <ol class="indicator"></ol>
     </div>
 
-	<div id="links">
+	<div id="links" class="links">
 	
 <% 
 	int thumbHeightWidth = 50;
@@ -73,9 +90,35 @@
 			{
 				ImageList.Images.ImageRef current = (ImageList.Images.ImageRef)imageIterater.next();
 				
-				String imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "\"/";
-				String imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "\"/";
-				String output = "<a href=\"" + imageMainPath + "\" title=\"" + current.getName() + "\"><img src=\"" + imageThumbPath + "\" title=\"" + current.getName() + "\"/></a>";
+				if (current.getName() == null || current.getName().isEmpty())
+					current.setName("");
+				
+				if (current.getDesc() == null || current.getDesc().isEmpty())
+					current.setDesc("");
+				
+				String name = "";
+				String fullNameDesc = "";
+				
+				if (showImageName && showImageDesc)
+				{
+					name = current.getName();
+					fullNameDesc = current.getName() + ((current.getDesc().length() > 0) ? ". " + current.getDesc() : "");
+				}
+				else if (showImageName)
+				{
+					name = current.getName();
+					fullNameDesc = current.getName();
+				}
+				else if (showImageDesc)
+				{
+					name = current.getDesc();
+					fullNameDesc = current.getDesc();
+				}
+				
+				
+				String imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
+				String imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
+				String output = "<a href=\"" + imageMainPath + "\" title=\"" + fullNameDesc + "\"><img src=\"" + imageThumbPath + "\" title=\"" + name + "\"/></a>";
 				%><%=output%><%
 			}
 		}

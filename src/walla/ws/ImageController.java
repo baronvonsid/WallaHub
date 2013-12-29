@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.ModelAndView;
@@ -356,6 +357,7 @@ public class ImageController {
 			@PathVariable("userName") String userName,
 			@PathVariable("imageCursor") int imageCursor,
 			@PathVariable("size") int size,
+			@RequestParam(value="sectionId", required=false) String paramSectionId,
 			HttpServletRequest requestObject,
 			HttpServletResponse httpResponse)
 	{
@@ -381,7 +383,11 @@ public class ImageController {
 			
 			CustomResponse customResponse = new CustomResponse();
 			
-			ImageList responseImageList = imageService.GetImageList(userId, type, identity, -1, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
+			long sectionId = -1;
+			if (paramSectionId != null)
+				sectionId = Long.parseLong(paramSectionId);
+			
+			ImageList responseImageList = imageService.GetImageList(userId, type, identity, sectionId, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
 			
 			httpResponse.addHeader("Cache-Control", "no-cache");
 			httpResponse.setStatus(customResponse.getResponseCode());

@@ -519,6 +519,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 				//throw new WallaException("TagDataHelperImpl", "GetTagImages", error, 0); 
 			}
 			
+			tagImageList.setImageCount(tagImageList.getImages().getImageRef().size());
 			tagImageList.setImageCursor(imageCursor);
 		}
 		catch (SQLException sqlEx) {

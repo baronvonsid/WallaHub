@@ -503,6 +503,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				//throw new WallaException("CategoryDataHelperImpl", "GetCategoryImages", error, 0); 
 			}
 			
+			categoryImageList.setImageCount(categoryImageList.getImages().getImageRef().size());
 			categoryImageList.setImageCursor(imageCursor);
 		}
 		catch (SQLException sqlEx) {

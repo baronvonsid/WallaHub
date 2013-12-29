@@ -28,64 +28,102 @@
     <link href="../../../../static/css/TemplateExt-Standard.css" rel="stylesheet" />
     <link href="../../../../static/css/custom-${css}/jquery-ui.min.css" rel="stylesheet" />
     <link href="../../../../static/css/custom-${css}/ThemeExt-Standard.css" rel="stylesheet" />
-
+	<link href="../../../../static/css/magnific-popup/magnific-popup.css" rel="stylesheet" />
+	
     <!-- Browser bar icon (16x16) -->
     <link href="../../../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
 
 </head>
 
-<body id="galleryBody" data-images-fetchsize="50" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
-        <header id="pageHeader" class="HeaderStyle">
-        <h1><img src="../../../../static/images/fotowallabrowser.png" height="16" width="16" />${name}</h1>
-        <span class="HeaderStyle">${desc}</span>
-    </header>
-
-	<nav id="pageNavigations">
 <%
-int groupingType = Integer.valueOf((String)request.getAttribute("groupingType").toString());
-if (groupingType > 0)
-{
-
-	List<Gallery.Sections.SectionRef> sectionList = (List<Gallery.Sections.SectionRef>)request.getAttribute("sectionList");
-	if (sectionList != null)
-	{
-		%><nav id="sectNavHor"><%
-		for (Iterator<Gallery.Sections.SectionRef> sectionIterater = sectionList.iterator() ; sectionIterater.hasNext();)
-		{
-			Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
-			%>
-		    <input type="radio" id="section<%=currentSectionRef.getSectionId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getSectionId()%>" />
-		    <label for="section<%=currentSectionRef.getSectionId()%>"><%=currentSectionRef.getName()%></label>
-			<%
-		}
-		%></nav><%
-	}
-}
+	boolean showGalleryName = Boolean.parseBoolean(request.getAttribute("showGalleryName").toString());
+	boolean showGalleryDesc = Boolean.parseBoolean(request.getAttribute("showGalleryDesc").toString());
+	int groupingType = Integer.valueOf((String)request.getAttribute("groupingType").toString());
 %>
 
-        <nav id="imageNav">
-            <span id="imageNavTextTotal">2001 images</span>
-            <button id="imageNavFirst">first</button>
-            <button id="imageNavPrevious">previous</button>
-            <span id="imageNavTextCursor">0 to 100</span>
-            <button id="imageNavNext">next</button>
-            <button id="imageNavLast">last</button>
-        </nav>
-	</nav>
-	
-	<div style="clear: both;"></div>
-	
-<div class="ImagesPaneStyle" id="imagesPaneContainer">
-	    <section id="imagesPane" class="ImagesPaneStyle" data-section-id="0" data-section-image-count="-1" data-images-first="0" data-images-last="0">
 
-	    </section>
-</div>
+<body id="galleryBody" data-images-fetchsize="50" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
+        
+        <nav id="pageNavigations">
+
+        <%if (showGalleryName || showGalleryDesc) {%>
+        	<header id="pageHeader" class="HeaderStyle">
+        	<%if (showGalleryName) {%>
+        		<h1>${name}</h1>
+        	<%} if (showGalleryDesc) { %>
+        		<span class="HeaderStyle">${desc}</span>
+        	<%}%>
+        	</header>
+        <%}
+        
+        if (groupingType == 0)
+        {
+        	//Nav and sections on same line.
+        	%>
+       	        <nav id="imageNav" width="200px">
+		            <span id="imageNavTextTotal"></span>
+		            <button id="imageNavFirst">first</button>
+		            <button id="imageNavPrevious">previous</button>
+		            <span id="imageNavTextCursor">0 to 0</span>
+		            <button id="imageNavNext">next</button>
+		            <button id="imageNavLast">last</button>
+		        </nav>
+        	<div style="clear: both;"></div></nav>
+        	<%
+        }
+        else
+        {
+        	if (showGalleryName || showGalleryDesc)
+        	{
+        	 %><div style="clear: both;"></div><%	
+        	}
+        	
+        	
+        	//Header and nav on same line.
+        	List<Gallery.Sections.SectionRef> sectionList = (List<Gallery.Sections.SectionRef>)request.getAttribute("sectionList");
+        	if (sectionList != null)
+        	{
+        		%><nav id="sectNavHor"><%
+        		for (Iterator<Gallery.Sections.SectionRef> sectionIterater = sectionList.iterator() ; sectionIterater.hasNext();)
+        		{
+        			Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
+        			%>
+        		    <input type="radio" id="section<%=currentSectionRef.getSectionId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getSectionId()%>" />
+        		    <label for="section<%=currentSectionRef.getSectionId()%>"><%=currentSectionRef.getName()%></label>
+        			<%
+        		}
+        		%></nav><%
+        	}
+        	%>
+        	    <nav id="imageNav" width="200px">
+		            <span id="imageNavTextTotal"></span>
+		            <button id="imageNavFirst">first</button>
+		            <button id="imageNavPrevious">previous</button>
+		            <span id="imageNavTextCursor">0 to 0</span>
+		            <button id="imageNavNext">next</button>
+		            <button id="imageNavLast">last</button>
+		        </nav>
+        	</nav>
+        	
+        	
+
+        	
+        	
+        	<div style="clear: both;"></div><%}%>
+
+
+	<div class="ImagesPaneStyle" id="imagesPaneContainer">
+		<section id="imagesPane" class="ImagesPaneStyle" data-section-id="0" data-section-image-count="-1" data-images-first="0" data-images-last="0"></section>
+	</div>
     
-    
-    	    <script src="../../../../static/scripts/jquery-2.0.3.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <!-- <script src="../../../../static/scripts/jquery-2.0.3.js"></script>-->
     <script src="../../../../static/scripts/jquery-ui-1.10.3.custom.js"></script>
+    <!-- <script src="../../../../static/scripts/jquery-1.9.1.min.js"></script>-->
+    <script src="../../../../static/scripts/magnific-popup/jquery.magnific-popup.js"></script>
+    
     <script>
-        var numberOfImages = 0;
+    var numberOfImages = 0;
 
     $(document).ready
     (
@@ -100,7 +138,41 @@ if (groupingType > 0)
             $("#sectNavHor > input").button({ icons: { primary: "ui-icon-bullet" } });
 
             ResizeDiv(true);
-
+			
+            
+            $('#imagesPaneContainer').magnificPopup({
+            	  delegate: 'a', // child items selector, by clicking on it popup will open
+            	  type: 'image',
+                      closeOnContentClick: true,
+                      closeBtnInside: false,
+                      fixedContentPos: true,
+                      mainClass: "mfp-no-margins mfp-with-zoom",
+                      image: {
+                        verticalFit: true
+                      },
+                      zoom: {
+                        enabled: true,
+                        duration: 300
+                      }
+            	});
+            
+            /*
+            $(".image-popup-no-margins").magnificPopup({
+                type: "image",
+                closeOnContentClick: true,
+                closeBtnInside: false,
+                fixedContentPos: true,
+                mainClass: "mfp-no-margins mfp-with-zoom",
+                image: {
+                  verticalFit: true
+                },
+                zoom: {
+                  enabled: true,
+                  duration: 300
+                }
+              });
+            */
+            
             /* Event hooks */
 
             $("#sectNavHor > input").change(
@@ -120,6 +192,15 @@ if (groupingType > 0)
             $("#imageNavLast").click(function () { FetchImagesList("last"); });
             
             $(window).resize(function () { ResizeDiv(false); });
+            
+        	if (+$("#galleryBody").attr("data-groupings-type") > 0)
+        	{
+        		$("#sectNavHor > input:first-child").click();
+        	}
+        	else
+        	{
+        		FetchImagesList("first");
+        	}
         }
     );
 
@@ -129,8 +210,12 @@ if (groupingType > 0)
         if (numberOfImages != proposedNumberOfImages || force) {
             var newWidth = (proposedNumberOfImages * 204) + 20;
             $("#imagesPane").width(newWidth.toString() + "px");
-            $("#pageHeader").width(newWidth.toString() + "px");
+            //$("#pageHeader").width(newWidth.toString() + "px");
             $("#pageNavigations").width(newWidth.toString() + "px");
+            
+            var newHeaderWidth = newWidth - 200;
+            //$("#pageHeader").width(newHeaderWidth.toString() + "px");
+            //$("#pageNavigations").width(newWidth.toString() + "px");
             
             console.info($(window).width() + " " + newWidth);
             numberOfImages = proposedNumberOfImages;
@@ -214,7 +299,7 @@ if (groupingType > 0)
     	
     	//alert($('#sectNavHor > input[name=sectNavHor]:checked').attr("data-section-id"));
     	
-    	var sectionId = 0;
+    	var sectionId = -1;
     	if (+$("#galleryBody").attr("data-groupings-type") > 0)
     	{
     		sectionId = +$('#sectNavHor > input[name=sectNavHor]:checked').attr("data-section-id");
@@ -263,9 +348,21 @@ if (groupingType > 0)
     	//alert(jqXHR.responseText);
 
         $("#imagesPaneContainer").html(data);
+
+        var imageCount = 0;
+        
+    	if (+$("#galleryBody").attr("data-groupings-type") > 0)
+    	{
+    		imageCount = +$("#imagesPane").attr("data-section-image-count");
+    	}
+    	else
+    	{
+    		imageCount = +$("#galleryBody").attr("data-total-image-count");
+    	}
+        
         
         //var totalImages = $("#imagesPane").attr("data-total-images");
-        ImageNavUpdate(+$("#imagesPane").attr("data-section-image-count"), +$("#imagesPane").attr("data-images-first"), +$("#imagesPane").attr("data-images-last"), +$("#galleryBody").attr("data-images-fetchsize"));
+        ImageNavUpdate(imageCount, +$("#imagesPane").attr("data-images-first"), +$("#imagesPane").attr("data-images-last"), +$("#galleryBody").attr("data-images-fetchsize"));
         
         ResizeDiv(true);
     }

@@ -119,6 +119,12 @@ public class GalleryViewer {
 					model.addAttribute("name", gallery.getName()); 
 					model.addAttribute("desc", gallery.getDesc());
 					
+					model.addAttribute("showGalleryName", gallery.isShowGalleryName());
+					model.addAttribute("showGalleryDesc", gallery.isShowGalleryDesc());
+					model.addAttribute("showImageName", gallery.isShowImageName());
+					model.addAttribute("showImageDesc", gallery.isShowImageDesc());
+					model.addAttribute("showImageMeta", gallery.isShowImageMeta());
+					
 					if (responseJsp.equals("GalleryViewer-Lightbox"))
 					{
 						int imageListMax = 1000;
@@ -208,45 +214,85 @@ public class GalleryViewer {
 			
 			if (customResponse.getResponseCode() == HttpStatus.OK.value())
 			{
-			    PrintWriter out = httpResponse.getWriter();
-			    
-			    int lastImage = imageList.getImageCount() + imageList.getImageCursor();
-			    
-			    out.println("<section id=\"imagesPane\""
-			    		+ " class=\"ImagesPaneStyle\""
-			    		+ " data-section-id=\"" + sectionId + "\"" 
-			    		+ " data-section-image-count=\"" + imageList.getSectionImageCount() + "\""
-			    		+ " data-images-first=\"" + imageList.getImageCursor() + "\""
-			    		+ " data-images-last=\"" + lastImage + "\">");
-
-				if (imageList.getImages() != null)
+				Gallery gallery = galleryService.GetGalleryMeta(userId, galleryName, customResponse);
+				if (customResponse.getResponseCode() == HttpStatus.OK.value())
 				{
-					if (imageList.getImages().getImageRef().size() > 0)
+				    PrintWriter out = httpResponse.getWriter();
+				    
+				    int lastImage = imageList.getImageCount() + imageList.getImageCursor();
+				    
+				    out.println("<section id=\"imagesPane\""
+				    		+ " class=\"ImagesPaneStyle\""
+				    		+ " data-section-id=\"" + sectionId + "\"" 
+				    		+ " data-section-image-count=\"" + imageList.getSectionImageCount() + "\""
+				    		+ " data-images-first=\"" + imageList.getImageCursor() + "\""
+				    		+ " data-images-last=\"" + lastImage + "\">");
+	   
+					if (imageList.getImages() != null)
 					{
-						//Construct update SQL statements
-						for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
+						if (imageList.getImages().getImageRef().size() > 0)
 						{
-							ImageList.Images.ImageRef current = (ImageList.Images.ImageRef)imageIterater.next();
-							
-							out.println("<article class=\"" + (noName ? "ImagesArticleNoNameStyle" : "ImagesArticleStyle") + "\""
-									+ "id=\"imageId" + current.getId() + "\""
-									+ "data-image-id=\"" + current.getId() + "\">");
-							 
-							out.println("<img alt=\"" + current.getName() + "\" class=\"thumbStyle\""
-									+ " src=\"../../../ws/" + userName + "/image/" + current.getId() + "/" + imageSize + "/" + imageSize + "\"/>");
-							
-							if (!noName)
+							//Construct update SQL statements
+							for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
 							{
-								out.println("<div class=\"ImagesArticleStyle\"><span>" + current.getName() + "</span></div>");
-							}
-							out.println("</article>");
+								ImageList.Images.ImageRef current = (ImageList.Images.ImageRef)imageIterater.next();
+								
+								if (current.getName() == null || current.getName().isEmpty())
+									current.setName("");
+								
+								if (current.getDesc() == null || current.getDesc().isEmpty())
+									current.setDesc("");
+								
+								String name = "";
+								String fullNameDesc = "";
+								
+								if (gallery.isShowImageName() && gallery.isShowGalleryDesc())
+								{
+									name = current.getName();
+									fullNameDesc = current.getName() + ((current.getDesc().length() > 0) ? ". " + current.getDesc() : "");
+								}
+								else if (gallery.isShowImageName())
+								{
+									name = current.getName();
+									fullNameDesc = current.getName();
+								}
+								else if (gallery.isShowGalleryDesc())
+								{
+									name = current.getDesc();
+									fullNameDesc = current.getDesc();
+								}
+								
+								String imageUrl = "../../../ws/" + userName + "/image/" + current.getId() + "/" + 1920 + "/" + 1080 + "/";
+								String thumbUrl = "../../../ws/" + userName + "/image/" + current.getId() + "/" + imageSize + "/" + imageSize + "/";
+								
+								out.println("<article class=\"" + (noName ? "ImagesArticleNoNameStyle" : "ImagesArticleStyle") + "\""
+										+ "id=\"imageId" + current.getId() + "\""
+										+ "data-image-id=\"" + current.getId() + "\">");
+								 
+								out.println("<a class=\"image-popup-no-margins\" href=\"" + imageUrl + "\" title=\"" + fullNameDesc + "\">");
+								out.println("<img class=\"thumbStyle\" title=\"" + name + "\""
+										+ " src=\"" + thumbUrl + "\"/>");
+								out.println("</a>");
+								
+								/*
+								if (!noName)
+								{
+									out.println("<div class=\"ImagesArticleStyle\"><span>" + current.getName() + "</span></div>");
+								}
+								*/
+								out.println("</article>");
 
+							}
 						}
 					}
+					
+					out.println("</section>");
+					out.close();
 				}
-				
-				out.println("</section>");
-				out.close();
+				else
+				{
+					httpResponse.setStatus(customResponse.getResponseCode());
+				}
 			}
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetImageList completed, User:" + userName + ", Gallery: " + galleryName + " Section Id:" + sectionId);}

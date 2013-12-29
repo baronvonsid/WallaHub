@@ -1,4 +1,4 @@
-﻿html {
+html {
     color: #1c94c4;
     background: #F5F5F5;
     font-family: Helvetica;
@@ -15,5 +15,5 @@ span.HeaderStyle  {
 }
 
 header.HeaderStyle {
-    margin: 4px;
+    margin: 0px;
 }

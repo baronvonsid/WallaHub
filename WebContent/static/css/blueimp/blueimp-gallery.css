@@ -32,8 +32,6 @@
   position: fixed;
   z-index: 999999;
   overflow: hidden;
-  background: #000;
-  background: rgba(0, 0, 0, 0.9);
   opacity: 0;
   display: none;
   direction: ltr;
@@ -103,12 +101,11 @@
   font-size: 60px;
   font-weight: 100;
   line-height: 30px;
-  color: #fff;
+  
   text-decoration: none;
   text-shadow: 0 0 2px #000;
   text-align: center;
-  background: #222;
-  background: rgba(0, 0, 0, 0.5);
+
   -webkit-box-sizing: content-box;
      -moz-box-sizing: content-box;
           box-sizing: content-box;
@@ -132,7 +129,6 @@
   margin: 0 40px 0 0;
   font-size: 20px;
   line-height: 30px;
-  color: #fff;
   text-shadow: 0 0 2px #000;
   opacity: 0.8;
   display: none;
@@ -165,7 +161,6 @@
 .blueimp-gallery > .close:hover,
 .blueimp-gallery > .title:hover,
 .blueimp-gallery > .play-pause:hover {
-  color: #fff;
   opacity: 1;
 }
 .blueimp-gallery-controls > .prev,
