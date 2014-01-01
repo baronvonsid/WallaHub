@@ -424,9 +424,11 @@ public class ImageService {
 		return "";
 	}
 	
-	private void ResizeAndSaveFile(long userId, String sourceImagePath, ImageMeta imageMeta, int width, int height, boolean isMain) throws IOException, InterruptedException, IM4JavaException
+	private void ResizeAndSaveFile(long userId, String sourceImagePath, ImageMeta imageMeta, int width, int height, String folder, boolean isMain) throws IOException, InterruptedException, IM4JavaException
 	{
-		String folder = width + "x" + height;
+		if (folder == null)
+			folder = width + "x" + height;
+		
 		Path imageDestinationFolderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), folder);
 
 		File imageDestinationFolder = imageDestinationFolderPath.toFile();
@@ -438,6 +440,14 @@ public class ImageService {
 		if (isMain)
 		{
 			ImageUtilityHelper.SaveMainImage(userId, sourceImagePath, imageDestinationPath, width, height);
+			//Check if switch is needed.
+
+			if (ImageUtilityHelper.CheckForPortrait(imageDestinationPath))
+			{
+				//Resize with portrait dimensions.
+				ImageUtilityHelper.DeleteImage(imageDestinationPath);
+				ImageUtilityHelper.SaveMainImage(userId, sourceImagePath, imageDestinationPath, height, width);
+			}
 		}
 		else
 		{
@@ -468,10 +478,32 @@ public class ImageService {
 		}
 	}
 	
-	public BufferedImage GetImageFile(long userId, long imageId, int width, int height, CustomResponse customResponse)
+	public BufferedImage GetImageFile(long userId, long imageId, int width, int height, boolean mainCopy, CustomResponse customResponse)
 	{
 		try
 		{
+			if (mainCopy)
+			{
+				String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+				if (imageFilePath.isEmpty())
+				{
+					ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
+					if (imageMeta == null)
+					{
+						String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
+						throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+					}
+					
+					//Master file not present, so create a new one.
+					ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
+					imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+				}
+				
+				//No resize needed.
+				customResponse.setResponseCode(HttpStatus.OK.value());
+				return ImageIO.read(new File(imageFilePath));
+			}
+			
 			//Check for aspect ratio, supported ratio is 1.0 or 1.77
 			double requestAspectRatio = (double)width / (double)height;
 			requestAspectRatio = UserTools.DoRound(requestAspectRatio,2);
@@ -493,11 +525,11 @@ public class ImageService {
 						case 20:
 							folder = "20x20";
 							break;
-						case 50:
-							folder = "50x50";
+						case 75:
+							folder = "75x75";
 							break;
-						case 250:
-							folder = "250x250";
+						case 300:
+							folder = "300x300";
 							break;
 						case 800:
 							folder = "800x800";
@@ -513,13 +545,13 @@ public class ImageService {
 						{
 							folder = "20x20";
 						}
-						else if (width<50)
+						else if (width<75)
 						{
-							folder = "50x50";	
+							folder = "75x75";	
 						}
-						else if (width<250)
+						else if (width<300)
 						{
-							folder = "250x250";	
+							folder = "300x300";	
 						}
 						else
 						{
@@ -539,7 +571,7 @@ public class ImageService {
 						}
 						
 						//File not present, so create it.
-						String masterImageFilePath = GetFilePathIfExists(userId, "1920x1080", imageId);
+						String masterImageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 						if (masterImageFilePath.isEmpty())
 						{
 							//Master file not present, so create a new one.
@@ -550,13 +582,13 @@ public class ImageService {
 								throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
 							}
 							
-							ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, true);
-							masterImageFilePath = GetFilePathIfExists(userId, "1920x1080", imageId);
+							ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
+							masterImageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 						}
 
 						int newWidth = Integer.valueOf(folder.substring(0, folder.indexOf("x")));
 						int newHeight = Integer.valueOf(folder.substring(folder.indexOf("x")+1));
-						ResizeAndSaveFile(userId, masterImageFilePath, imageMeta, newWidth, newHeight, false);
+						ResizeAndSaveFile(userId, masterImageFilePath, imageMeta, newWidth, newHeight, null, false);
 						imageFilePath = GetFilePathIfExists(userId, folder, imageId);
 					}
 					
@@ -583,7 +615,7 @@ public class ImageService {
 				}
 				else
 				{
-					//If aspect ratio is 1.77
+					//If aspect ratio is 1.77 and requested size is greater than 1080, then this is too large for the main copy.
 					if (height > 1080)
 					{
 						String error = "Image size requested is not supported.  Size is too large for the aspect Ratio:" 
@@ -591,7 +623,7 @@ public class ImageService {
 						throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.BAD_REQUEST.value());
 					}
 					
-					String imageFilePath = GetFilePathIfExists(userId, "1920x1080", imageId);
+					String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 					if (imageFilePath.isEmpty())
 					{
 						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
@@ -602,23 +634,19 @@ public class ImageService {
 						}
 						
 						//Master file not present, so create a new one.
-						ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, true);
-						imageFilePath = GetFilePathIfExists(userId, "1920x1080", imageId);
+						ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
+						imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 					}
 					
 					if (height < 1080)
 					{
 				    	BufferedImage originalImage = ImageIO.read(new File(imageFilePath));
 				    	int type = originalImage.getType() == 0? BufferedImage.TYPE_INT_ARGB : originalImage.getType();
-				    	
-				    			
-				    	
+
 						double currenctAspectRatio = (double)originalImage.getWidth() / (double)originalImage.getHeight();
 						currenctAspectRatio = UserTools.DoRound(currenctAspectRatio,2);
 						double newHeight = (double)width / currenctAspectRatio;
-						
-						
-				    	
+
 				    	BufferedImage resizedImage = new BufferedImage(width, (int)Math.round(newHeight), type);
 				    	Graphics2D g = resizedImage.createGraphics();
 				    	g.drawImage(originalImage, 0, 0, width, (int)Math.round(newHeight), null);
@@ -629,6 +657,7 @@ public class ImageService {
 					}
 					else
 					{
+						//No resize needed.
 						customResponse.setResponseCode(HttpStatus.OK.value());
 						return ImageIO.read(new File(imageFilePath));
 					}
@@ -706,17 +735,17 @@ public class ImageService {
     		String originalImagePath = ImageUtilityHelper.SaveOriginal(userId, uploadedFile.getPath(), userOriginalFolderPath.toString(), imageId, imageMeta.getFormat());
     		
 			//Make one initial copy, to drive subsequent resizing and also to orient correctly.
-    		File userMainImageFolder = Paths.get(destinationRoot, "Saved", Long.toString(userId), "1920x1080").toFile();
+    		File userMainImageFolder = Paths.get(destinationRoot, "Saved", Long.toString(userId), "MainCopy").toFile();
     		if (!userMainImageFolder.exists())
     		{
     			userMainImageFolder.mkdirs();
     		}
-    		ResizeAndSaveFile(userId, uploadedFile.getPath(), imageMeta, 1920, 1080, true);
+    		ResizeAndSaveFile(userId, uploadedFile.getPath(), imageMeta, 1920, 1080, "MainCopy", true);
 
-			String mainImagePath = GetFilePathIfExists(userId, "1920x1080", imageId);
+			String mainImagePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 			if (mainImagePath.isEmpty())
 			{
-				String error = "Unexpected error retrieving a resized image in the folder: 1920x1080.  ImageId:" + imageId;
+				String error = "Unexpected error retrieving a resized image in the folder: MainCopy.  ImageId:" + imageId;
 				throw new WallaException("ImageService", "SetupNewImage", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
     				
@@ -737,10 +766,10 @@ public class ImageService {
 	       	 Surface2 1920x1080 - 1.77
 	       	 */
 			
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 20, 20, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 50, 50, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 250, 250, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 800, 800, false);
+			//ResizeAndSaveFile(userId,mainImagePath, imageMeta, 20, 20, false);
+			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 75, 75, null, false);
+			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 300, 300, null, false);
+			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 800, 800, null, false);
 
             //TODO Delete original uploaded image.
 			ImageUtilityHelper.DeleteImage(uploadedFile.getPath());

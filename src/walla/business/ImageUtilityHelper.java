@@ -355,7 +355,23 @@ public final class ImageUtilityHelper
 		deleteFile.delete();
 	}
 	
-	public static void SwitchHeightWidth(String mainImagePath, ImageMeta imageMeta) throws IOException
+	public static boolean CheckForPortrait(String mainImagePath) throws IOException
+	{
+		boolean portrait = false;
+		
+		BufferedImage img = ImageIO.read(new File(mainImagePath));
+		int height = img.getHeight();
+		int width = img.getWidth();
+		
+		double aspectRatio = (double)width / (double)height;
+		aspectRatio = UserTools.DoRound(aspectRatio,0);
+		if (aspectRatio < 1)
+			portrait = true;
+		
+		return portrait;
+	}
+	
+	public static boolean SwitchHeightWidth(String mainImagePath, ImageMeta imageMeta) throws IOException
 	{
 		int imageMetaWidth = imageMeta.getWidth().intValue();
 		int imageMetaHeight = imageMeta.getHeight().intValue();
@@ -377,6 +393,11 @@ public final class ImageUtilityHelper
 			//Switch them.
 			imageMeta.setHeight(imageMetaWidth);
 			imageMeta.setWidth(imageMetaHeight);
+			return true;
+		}
+		else
+		{
+			return false;
 		}
 		
 	}
@@ -393,8 +414,10 @@ public final class ImageUtilityHelper
 		op.strip();
 		op.resize(targetWidth,targetHeight);
 		op.addImage(destinationFilePath);
-
 		cmd.run(op);
+		
+		//TODO add logic to ensure portrait orientated images get the max resolution.
+		
 	}
 	
 	public static String SaveOriginal(long userId, String fromFilePath, String toFolderPath, long imageId, String extension) throws IOException, InterruptedException, IM4JavaException

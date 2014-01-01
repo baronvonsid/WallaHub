@@ -33,7 +33,7 @@
     <link href="../../../../static/css/TemplateExt-Lightbox.css" rel="stylesheet" />
 
     <!-- Browser bar icon (16x16) -->
-    <link href="../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
+    <link href="../../../../static/images/fotowallabrowser.png" rel="shortcut icon" type="image/vnd.microsoft.icon" />
 
 </head>
 
@@ -75,7 +75,7 @@
 	<div id="links" class="links">
 	
 <% 
-	int thumbHeightWidth = 50;
+	int thumbHeightWidth = 75;
 	int mainImageWidth = 1920;
 	int mainImageHeight = 1080;
 

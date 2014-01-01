@@ -475,17 +475,16 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 
 			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-					+ " CASE WHEN [MachineId] = ? THEN [LocalPath] ELSE NULL END AS [LocalPath], [CategoryId] "
+					+ " [RecordVersion], [CategoryId] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " i.[MachineId], i.[LocalPath],im.[UploadDate],im.[TakenDateMeta], i.[CategoryId]"
+					+ " i.[RecordVersion],im.[UploadDate],im.[TakenDateMeta], i.[CategoryId]"
 					+ " FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE ti.[TagId] = ? AND i.Status = 3 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 			ps = conn.prepareStatement(selectSql);
-			ps.setLong(1, machineId);
-			ps.setLong(2, tagImageList.getId());
-			ps.setInt(3, imageCursor);
-			ps.setInt(4, imageCursor + imageCount);
+			ps.setLong(1, tagImageList.getId());
+			ps.setInt(2, imageCursor);
+			ps.setInt(3, imageCursor + imageCount);
 			//ps.setString(5, "[Name]"); //Sort
 			
 			resultset = ps.executeQuery();
@@ -507,7 +506,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 				XMLGregorianCalendar xmlOldGregTaken = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 				newImageRef.setTakenDate(xmlOldGregTaken);
 				
-				newImageRef.setLocalPath(resultset.getString(7));
+				newImageRef.setMetaVersion(resultset.getInt(7));
 				newImageRef.setCategoryId(resultset.getLong(8));
 				tagImageList.getImages().getImageRef().add(newImageRef);
 			}

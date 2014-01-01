@@ -816,36 +816,34 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			{
 				//With Section Filter.
 				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-						+ " CASE WHEN [MachineId] = ? THEN [LocalPath] ELSE NULL END AS [LocalPath] "
+						+ " [RecordVersion] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[MachineId], i.[LocalPath],im.[UploadDate],im.[TakenDateMeta]"
+						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDateMeta]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId "
 						+ " INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 AND gi.[SectionId] = ?) AS RR"
 						+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 				
 				ps = conn.prepareStatement(selectSql);
-				ps.setLong(1, machineId);
-				ps.setLong(2, galleryImageList.getId());
-				ps.setLong(3, galleryImageList.getSectionId());
-				ps.setInt(4, imageCursor);
-				ps.setInt(5, imageCursor + imageCount);
+				ps.setLong(1, galleryImageList.getId());
+				ps.setLong(2, galleryImageList.getSectionId());
+				ps.setInt(3, imageCursor);
+				ps.setInt(4, imageCursor + imageCount);
 			}
 			else
 			{
 				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-						+ " CASE WHEN [MachineId] = ? THEN [LocalPath] ELSE NULL END AS [LocalPath] "
+						+ " [RecordVersion] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[MachineId], i.[LocalPath],im.[UploadDate],im.[TakenDateMeta]"
+						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDateMeta]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 ) AS RR"
 						+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 				
 				ps = conn.prepareStatement(selectSql);
-				ps.setLong(1, machineId);
-				ps.setLong(2, galleryImageList.getId());
-				ps.setInt(3, imageCursor);
-				ps.setInt(4, imageCursor + imageCount);
+				ps.setLong(1, galleryImageList.getId());
+				ps.setInt(2, imageCursor);
+				ps.setInt(3, imageCursor + imageCount);
 			}
 			
 
@@ -870,7 +868,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				XMLGregorianCalendar xmlOldGregTaken = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 				newImageRef.setTakenDate(xmlOldGregTaken);
 				
-				newImageRef.setLocalPath(resultset.getString(7));
+				newImageRef.setMetaVersion(resultset.getInt(7));
 				
 				galleryImageList.getImages().getImageRef().add(newImageRef);
 			}

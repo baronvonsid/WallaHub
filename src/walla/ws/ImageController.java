@@ -65,7 +65,8 @@ import walla.utils.*;
 
 	GetImageList() /{type}/{identity}/{imageCursor}/{size}
 
-	GetOriginalImage GET /{userName}/image/{imageId}
+	GetOriginalImage GET /{userName}/image/{imageId}/original
+	GetMainCopyImage GET /{userName}/image/{imageId}/maincopy
 	GetImage GET /{userName}/image/{imageId}/{width}
 */
 
@@ -349,7 +350,7 @@ public class ImageController {
 	//  GET /{type}/{identity}/{imageCursor}/{size}
 	//  To add - Filter Selection - neName=simon,neName=simon, mtName=simon, ltName=simon, sortasc=Name, sortdesc=Desc
 	//  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/{type}/{identity}/{imageCursor}/{size}", method=RequestMethod.GET, 
+	@RequestMapping(value="/{userName}/{type}/{identity}/{imageCursor}/{size}", method=RequestMethod.GET,
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody ImageList GetImageList(
 			@PathVariable("type") String type,
@@ -386,6 +387,8 @@ public class ImageController {
 			long sectionId = -1;
 			if (paramSectionId != null)
 				sectionId = Long.parseLong(paramSectionId);
+			
+			//Thread.sleep(2000);
 			
 			ImageList responseImageList = imageService.GetImageList(userId, type, identity, sectionId, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
 			
@@ -478,9 +481,9 @@ public class ImageController {
 		}
 	}
 	
-	//GET /image/{imageId}
+	//GET /image/{imageId}/original
 	//Not client or server side caching.
-	@RequestMapping(value = { "/{userName}/image/{imageId}" }, method = { RequestMethod.GET }, produces=MediaType.APPLICATION_OCTET_STREAM_VALUE )
+	@RequestMapping(value = { "/{userName}/image/{imageId}/original" }, method = { RequestMethod.GET }, produces=MediaType.APPLICATION_OCTET_STREAM_VALUE )
 	public @ResponseBody void GetOriginalImage(
 			@PathVariable("userName") String userName,
 			@PathVariable("imageId") long imageId,
@@ -531,6 +534,50 @@ public class ImageController {
 		}
 	}
 	
+	//GET /{userName}/image/{imageId}/maincopy
+	//Server side caching.  Client side caching.
+	@RequestMapping(value = { "/{userName}/image/{imageId}/maincopy" }, method = { RequestMethod.GET }, produces=MediaType.IMAGE_JPEG_VALUE )
+	public @ResponseBody void GetMainCopyImage(
+			@PathVariable("userName") String userName,
+			@PathVariable("imageId") long imageId,
+			HttpServletRequest httpRequest,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request received, User: " + userName + " ImageId:" + imageId);}
+			
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
+				return;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, 0, 0, true, customResponse);
+			//TODO - No cache header
+			//Thread.sleep(1000);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
+			httpResponse.setStatus(customResponse.getResponseCode());
+			
+			if (responseImage != null)
+			{
+				ImageIO.write(responseImage, "jpg", httpResponse.getOutputStream());
+			}
+			
+			//TODO add server side caching tag.
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetMainCopyImage", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
+	
+	
 	//GET /{userName}/image/{imageId}/{width}/{height}
 	//Server side caching.  Client side caching.
 	@RequestMapping(value = { "/{userName}/image/{imageId}/{width}/{height}" }, method = { RequestMethod.GET }, produces=MediaType.IMAGE_JPEG_VALUE )
@@ -556,7 +603,7 @@ public class ImageController {
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, width, height, customResponse);
+			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, width, height, false, customResponse);
 			//TODO - No cache header
 			//Thread.sleep(1000);
 			

@@ -460,17 +460,16 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn = dataSource.getConnection();
 
 			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-					+ " CASE WHEN [MachineId] = ? THEN [LocalPath] ELSE NULL END AS [LocalPath], [CategoryId] "
+					+ " [RecordVersion], [CategoryId] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " i.[MachineId], i.[LocalPath],im.[UploadDate],im.[TakenDateMeta], i.[CategoryId]"
+					+ " im.[UploadDate],im.[TakenDateMeta],i.[RecordVersion], i.[CategoryId]"
 					+ " FROM Image i INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE i.[CategoryId] = ? AND i.Status = 3 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 			ps = conn.prepareStatement(selectSql);
-			ps.setLong(1, machineId);
-			ps.setLong(2, categoryImageList.getId());
-			ps.setInt(3, imageCursor);
-			ps.setInt(4, imageCursor + imageCount);
+			ps.setLong(1, categoryImageList.getId());
+			ps.setInt(2, imageCursor);
+			ps.setInt(3, imageCursor + imageCount);
 			
 			resultset = ps.executeQuery();
 			oldGreg = new GregorianCalendar();
@@ -491,7 +490,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				XMLGregorianCalendar xmlOldGregTaken = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 				newImageRef.setTakenDate(xmlOldGregTaken);
 				
-				newImageRef.setLocalPath(resultset.getString(7));
+				newImageRef.setMetaVersion(resultset.getInt(7));
 				newImageRef.setCategoryId(resultset.getLong(8));
 				categoryImageList.getImages().getImageRef().add(newImageRef);
 			}
