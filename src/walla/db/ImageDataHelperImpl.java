@@ -79,7 +79,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			}
 			
 			String selectSql = "SELECT [ImageId], [Status], [Name], [LastUpdated] FROM [Image] WHERE [UserId] = ? AND "
-					+ "([Status] IN (1,2) OR ([Status] = 4 AND [LastUpdated] > DATEADD(d,-2,GETDATE())) " + addImages + ")";
+					+ "([Status] IN (1,2) OR ([Status] = 4 AND [LastUpdated] > DATEADD(d,-2,dbo.GetDateNoMS())) " + addImages + ")";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, userId);
@@ -142,7 +142,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 					controlCount = 0;
 					returnCount = 0;
 					
-					String deleteSql = "UPDATE [Image] SET [Status] = 5,[RecordVersion] = [RecordVersion] + 1, [LastUpdated] = GetDate() WHERE [ImageId]= ? AND [UserId] = ?"; 
+					String deleteSql = "UPDATE [Image] SET [Status] = 5,[RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS() WHERE [ImageId]= ? AND [UserId] = ?"; 
 				    ps = conn.prepareStatement(deleteSql);			   
 				    
 					//Construct update SQL statements
@@ -393,13 +393,13 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	public void CreateImage(long userId, ImageMeta newImage) throws WallaException 
 	{
 		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],[RecordVersion],[LastUpdated],[LocalPath],[MachineId],[UserId]) "
-				+ "VALUES (?,?,?,?,?,?,?,?,GetDate(),?,?,?)";
+				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?,?)";
 		
 		String sqlMeta = "INSERT INTO [ImageMeta] ([ImageId],"
 				+ "[Width],[Height],[Size],[TakenDateFile],[UploadDate],"
 				+ "[UdfChar1],[UdfChar2],[UdfChar3],[UdfText1],"
 				+ "[UdfNum1],[UdfNum2],[UdfNum3],[UdfDate1],[UdfDate2],[UdfDate3]) "
-				+ "VALUES (?,?,?,?,?,GetDate(),?,?,?,?,?,?,?,?,?,?)";
+				+ "VALUES (?,?,?,?,?,dbo.GetDateNoMS(),?,?,?,?,?,?,?,?,?,?)";
 		
 		Connection conn = null;
 		PreparedStatement psImage = null;
@@ -526,7 +526,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 
 	public void UpdateImage(long userId, ImageMeta existingImage) throws WallaException 
 	{
-		String sqlImage = "UPDATE [Image] SET [Name] = ?,[Description] = ?, [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = GetDate() "
+		String sqlImage = "UPDATE [Image] SET [Name] = ?,[Description] = ?, [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS() "
 				+ "WHERE [ImageId] = ? AND [UserId] = ? AND [RecordVersion]= ?";
 						
 		String sqlMeta = "UPDATE [ImageMeta] SET [Width] = ?,[Height] = ?,[Size] = ?,"
@@ -836,7 +836,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 
-			String updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = GetDate(), "
+			String updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
 					+ "[ErrorMessage] = ?, [Status] = ? "
 					+ "WHERE ImageId = ? AND [UserId] = ? AND [Status] = ?";
 			

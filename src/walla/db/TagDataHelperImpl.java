@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -45,7 +46,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 	public void CreateTag(long userId, Tag newTag, long newId) throws WallaException
 	{
 		String sql = "INSERT INTO [Tag] ([TagId],[Name],[Description],[SystemOwned],[SqlExpression],[LastUpdated],[RecordVersion],[UserId]) "
-				+ "VALUES (?,?,?,?,?,GetDate(),?,?)";
+				+ "VALUES (?,?,?,?,?,dbo.GetDateNoMS(),?,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -123,7 +124,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			updateVersionSql = "UPDATE [dbo].[Tag] SET [Name] = ?, [Description] = ?, [LastUpdated] = GetDate(), [RecordVersion] = [RecordVersion] + 1 WHERE [TagId] = ? AND [RecordVersion] = ?";
+			updateVersionSql = "UPDATE [dbo].[Tag] SET [Name] = ?, [Description] = ?, [LastUpdated] = dbo.GetDateNoMS(), [RecordVersion] = [RecordVersion] + 1 WHERE [TagId] = ? AND [RecordVersion] = ?";
 
 			ps = conn.prepareStatement(updateVersionSql);
 			ps.setString(1, existingTag.getName());
@@ -192,7 +193,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 				throw new WallaException("TagDataHelperImpl", "DeleteTag", error, HttpStatus.CONFLICT.value()); 
 			}
 
-			String updateSql = "UPDATE [User] SET [TagLastDeleted] = GetDate() WHERE [UserId] = " + userId;
+			String updateSql = "UPDATE [User] SET [TagLastDeleted] = dbo.GetDateNoMS() WHERE [UserId] = " + userId;
 			us = conn.createStatement();
 			returnCount = us.executeUpdate(updateSql);
 			us.close();
@@ -475,9 +476,10 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 
 			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-					+ " [RecordVersion], [CategoryId] "
+					+ " [RecordVersion], [CategoryId], [ISO], [Aperture], [ShutterSpeed], [Size] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " i.[RecordVersion],im.[UploadDate],im.[TakenDateMeta], i.[CategoryId]"
+					+ " i.[RecordVersion],im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta, i.[CategoryId],"
+					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE ti.[TagId] = ? AND i.Status = 3 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
@@ -486,6 +488,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 			ps.setInt(2, imageCursor);
 			ps.setInt(3, imageCursor + imageCount);
 			//ps.setString(5, "[Name]"); //Sort
+			
 			
 			resultset = ps.executeQuery();
 			oldGreg = new GregorianCalendar();
@@ -508,6 +511,23 @@ public class TagDataHelperImpl implements TagDataHelper {
 				
 				newImageRef.setMetaVersion(resultset.getInt(7));
 				newImageRef.setCategoryId(resultset.getLong(8));
+				
+		        SimpleDateFormat monthDayYearformatter = new SimpleDateFormat("dd MMM yyyy");
+		        monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6));
+		        
+				String summary = ((resultset.getInt(9) == 0) ? "" : "ISO" + resultset.getInt(9) + " ");
+				summary = summary + ((resultset.getString(10) == null) ? "" : resultset.getString(10) + " ");
+				summary = summary + ((resultset.getString(11) == null) ? "" : resultset.getString(11));
+
+				String shotSummary = ((resultset.getInt(9) == 0) ? "" : "ISO" + resultset.getInt(9) + " ");
+				shotSummary = shotSummary + ((resultset.getString(10) == null) ? "" : resultset.getString(10) + " ");
+				shotSummary = shotSummary + ((resultset.getString(11) == null) ? "" : resultset.getString(11));
+				newImageRef.setShotSummary(shotSummary);
+				
+				String fileSummary = UserTools.ConvertBytesToMB(resultset.getLong(12)) + " - ";
+				fileSummary = fileSummary + (monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6)));
+				newImageRef.setFileSummary(fileSummary);
+				
 				tagImageList.getImages().getImageRef().add(newImageRef);
 			}
 			resultset.close();
@@ -595,7 +615,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 
-			String updateSql = "UPDATE [Tag] SET [LastUpdated] = GetDate(), "
+			String updateSql = "UPDATE [Tag] SET [LastUpdated] = dbo.GetDateNoMS(), "
 					+ "[ImageCount] = (SELECT COUNT(1) FROM [TagImage] TI INNER JOIN [Image] I ON TI.[ImageId] = I.[ImageId] "
 					+ "WHERE TI.[TagId] = [Tag].[TagId] AND I.[Status]=3) "
 					+ "WHERE [Tag].TagId = " + tagId + " AND [UserId] = " + userId;

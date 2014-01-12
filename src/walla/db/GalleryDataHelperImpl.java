@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -48,7 +49,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
 				+ "[TotalImageCount],[LastUpdated],[RecordVersion],"
 				+ "[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],[ShowImageDesc],[ShowImageMeta],[UserId]) "
-				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,GetDate(),1,?,?,?,?,?,?)";
+				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,dbo.GetDateNoMS(),1,?,?,?,?,?,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -282,7 +283,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			//Process an update to the main record.
 			String updateVersionSql = "UPDATE [dbo].[Gallery] SET [Name] = ?, [Description] = ?, [AccessType] = ?, [Password] = ?,"
-					+ "[SelectionType] = ?, [GroupingType] = ?,[StyleId] = ?, [TotalImageCount] = -1,[PresentationId] = ?, [LastUpdated] = GetDate(),"
+					+ "[SelectionType] = ?, [GroupingType] = ?,[StyleId] = ?, [TotalImageCount] = -1,[PresentationId] = ?, [LastUpdated] = dbo.GetDateNoMS(),"
 					+ "[RecordVersion] = [RecordVersion] + 1, [ShowGalleryName] = ?,[ShowGalleryDesc] = ?,[ShowImageName] = ?,"
 					+ "[ShowImageDesc] = ?,[ShowImageMeta] = ? WHERE [UserId] = ? AND [GalleryId] = ? AND [RecordVersion] = ?";
 
@@ -403,7 +404,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			//TODO Delete GalleryImages.
 			
-			String updateSql = "UPDATE [User] SET [GalleryLastDeleted] = GetDate() WHERE [UserId] = " + userId;
+			String updateSql = "UPDATE [User] SET [GalleryLastDeleted] = dbo.GetDateNoMS() WHERE [UserId] = " + userId;
 			us = conn.createStatement();
 			returnCount = us.executeUpdate(updateSql);
 			us.close();
@@ -816,9 +817,10 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			{
 				//With Section Filter.
 				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-						+ " [RecordVersion] "
+						+ " [RecordVersion], [ISO], [Aperture], [ShutterSpeed], [Size] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDateMeta]"
+						+ " i.[RecordVersion], im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,"
+						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId "
 						+ " INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 AND gi.[SectionId] = ?) AS RR"
@@ -833,9 +835,10 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			else
 			{
 				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-						+ " [RecordVersion] "
+						+ " [RecordVersion], [ISO], [Aperture], [ShutterSpeed], [Size] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDateMeta]"
+						+ " i.[RecordVersion], im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,"
+						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 ) AS RR"
 						+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
@@ -869,6 +872,18 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				newImageRef.setTakenDate(xmlOldGregTaken);
 				
 				newImageRef.setMetaVersion(resultset.getInt(7));
+				
+		        SimpleDateFormat monthDayYearformatter = new SimpleDateFormat("dd MMM yyyy");
+		        monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6));
+				
+				String shotSummary = ((resultset.getInt(8) == 0) ? "" : "ISO" + resultset.getInt(8) + " ");
+				shotSummary = shotSummary + ((resultset.getString(9) == null) ? "" : resultset.getString(9) + " ");
+				shotSummary = shotSummary + ((resultset.getString(10) == null) ? "" : resultset.getString(10));
+				newImageRef.setShotSummary(shotSummary);
+				
+				String fileSummary = UserTools.ConvertBytesToMB(resultset.getLong(11)) + " - ";
+				fileSummary = fileSummary + (monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6)));
+				newImageRef.setFileSummary(fileSummary);
 				
 				galleryImageList.getImages().getImageRef().add(newImageRef);
 			}

@@ -54,7 +54,13 @@ public final class ImageUtilityHelper
 		{
 			response = LoadFileIntoMemoryReadAttributes(imageFile, imageMeta);
 			if (!response.equals("OK"))
+			{
 				return "Meta data not supported, image could not be loaded." + response;
+			}
+			else
+			{
+				return "OK";
+			}
 		}
 		
 		if (imageMeta.getFormat().equals("JPG"))

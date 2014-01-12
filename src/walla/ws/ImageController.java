@@ -247,10 +247,9 @@ public class ImageController {
 	}
 	
 	//  DELETE /{userName}/images
-	@RequestMapping(value = { "/{userName}/images" }, method = { RequestMethod.DELETE },  headers={"Accept-Charset=utf-8"} )
+	@RequestMapping(value = { "/{userName}/images" }, method = { RequestMethod.DELETE },  headers={"Accept-Charset=utf-8"}, consumes = MediaType.APPLICATION_XML_VALUE )
 	public void DeleteImageBulk(
 			@RequestBody ImageList imagesToDelete,
-			@PathVariable("imageId") long imageId,
 			@PathVariable("userName") String userName,
 			HttpServletResponse httpResponse)
 	{
@@ -559,7 +558,7 @@ public class ImageController {
 			CustomResponse customResponse = new CustomResponse();
 			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, 0, 0, true, customResponse);
 			//TODO - No cache header
-			//Thread.sleep(1000);
+			Thread.sleep(1000);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
 			httpResponse.setStatus(customResponse.getResponseCode());

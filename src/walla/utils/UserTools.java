@@ -174,4 +174,10 @@ public final class UserTools {
 		
 	}
 	
+	public static String ConvertBytesToMB(long size)
+	{
+		double newSize = (double)size / 1024.0 / 1024.0;
+		return DoRound(newSize, 2) + "MB";
+	}
+	
 }

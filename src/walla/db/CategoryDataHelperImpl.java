@@ -11,7 +11,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
@@ -45,7 +47,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 	public void CreateCategory(long userId, Category newCategory, long categoryId) throws WallaException
 	{
 		String sql = "INSERT INTO [dbo].[Category] ([CategoryId],[ParentId],[Name],[Description],[ImageCount],[LastUpdated],[RecordVersion],[UserId],[Active]) "
-					+ "VALUES (?,?,?,?,0,GetDate(),?,?,1)";
+					+ "VALUES (?,?,?,?,0,dbo.GetDateNoMS(),?,?,1)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -132,7 +134,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn.setAutoCommit(false);
 			
 			//Process an update to the main record.
-			updateVersionSql = "UPDATE [dbo].[Category] SET [ParentId] = ?,[Name] = ?,[Description] = ?,[LastUpdated] = GetDate(),[RecordVersion] = [RecordVersion] + 1 WHERE [CategoryId] = ? AND [RecordVersion] = ?";
+			updateVersionSql = "UPDATE [dbo].[Category] SET [ParentId] = ?,[Name] = ?,[Description] = ?,[LastUpdated] = dbo.GetDateNoMS(),[RecordVersion] = [RecordVersion] + 1 WHERE [CategoryId] = ? AND [RecordVersion] = ?";
 
 			ps = conn.prepareStatement(updateVersionSql);
 			ps.setLong(1, existingCategory.getParentId());
@@ -191,7 +193,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			String updateActiveSql = "UPDATE [dbo].[Category] SET [Active] = 0, [LastUpdated] = GetDate(), [RecordVersion] = [RecordVersion] + 1 WHERE [UserId] = " + userId + " AND [CategoryId] = ";
+			String updateActiveSql = "UPDATE [dbo].[Category] SET [Active] = 0, [LastUpdated] = dbo.GetDateNoMS(), [RecordVersion] = [RecordVersion] + 1 WHERE [UserId] = " + userId + " AND [CategoryId] = ";
 			ds = conn.createStatement();
 			
 			for (int i = 0; i < categoryIds.length; i++)
@@ -208,7 +210,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				updateCount++;
 			}
 			
-			String updateUserSql = "UPDATE [User] SET [CategoryLastDeleted] = GetDate() WHERE [UserId] = " + userId;
+			String updateUserSql = "UPDATE [User] SET [CategoryLastDeleted] = dbo.GetDateNoMS() WHERE [UserId] = " + userId;
 			ds.addBatch(updateUserSql);
 			
 			//Execute statement and ignore counts.
@@ -460,9 +462,10 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn = dataSource.getConnection();
 
 			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
-					+ " [RecordVersion], [CategoryId] "
+					+ " [RecordVersion], [CategoryId], [ISO], [Aperture], [ShutterSpeed], [Size] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " im.[UploadDate],im.[TakenDateMeta],i.[RecordVersion], i.[CategoryId]"
+					+ " im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,i.[RecordVersion], i.[CategoryId],"
+					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM Image i INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE i.[CategoryId] = ? AND i.Status = 3 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
@@ -492,6 +495,19 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				
 				newImageRef.setMetaVersion(resultset.getInt(7));
 				newImageRef.setCategoryId(resultset.getLong(8));
+
+		        SimpleDateFormat monthDayYearformatter = new SimpleDateFormat("dd MMM yyyy");
+		        monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6));
+		        
+				String shotSummary = ((resultset.getInt(9) == 0) ? "" : "ISO" + resultset.getInt(9) + " ");
+				shotSummary = shotSummary + ((resultset.getString(10) == null) ? "" : resultset.getString(10) + " ");
+				shotSummary = shotSummary + ((resultset.getString(11) == null) ? "" : resultset.getString(11));
+				newImageRef.setShotSummary(shotSummary);
+				
+				String fileSummary = UserTools.ConvertBytesToMB(resultset.getLong(12)) + " - ";
+				fileSummary = fileSummary + (monthDayYearformatter.format((java.util.Date) resultset.getTimestamp(6)));
+				newImageRef.setFileSummary(fileSummary);
+				
 				categoryImageList.getImages().getImageRef().add(newImageRef);
 			}
 			resultset.close();
@@ -670,7 +686,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn.setAutoCommit(false);
 			
 			//Process an update to the main record.
-			String updateVersionSql = "UPDATE [dbo].[Category] SET [LastUpdated] = GetDate(), "
+			String updateVersionSql = "UPDATE [dbo].[Category] SET [LastUpdated] = dbo.GetDateNoMS(), "
 					+ "[ImageCount] = (SELECT COUNT(1) FROM Image I WHERE I.[CategoryId] = [Category].[CategoryId] AND I.[STATUS] = 3) "
 					+ "WHERE [UserId] = " + userId + " AND [CategoryId] = ";
 			ds = conn.createStatement();
@@ -847,7 +863,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn.setAutoCommit(false);
 			
 			//Process an update to the main record.
-			String updateSql = "UPDATE [dbo].[Image] SET [LastUpdated] = GetDate(), [RecordVersion] = [RecordVersion] + 1,"
+			String updateSql = "UPDATE [dbo].[Image] SET [LastUpdated] = dbo.GetDateNoMS(), [RecordVersion] = [RecordVersion] + 1,"
 					+ " [CategoryId] = " + categoryId + " WHERE [UserId] = " + userId + " AND [ImageId] IN (";
 
 			if (moveList.getImageRef() != null)
