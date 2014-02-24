@@ -253,7 +253,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		}
 	}
 	
-	public ImageMeta GetImageMeta(long userId, long imageId, long machineId) throws WallaException 
+	public ImageMeta GetImageMeta(long userId, long imageId) throws WallaException 
 	{
 		Connection conn = null;
 		PreparedStatement psMeta = null;
@@ -268,7 +268,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 
 			String selectSql = "SELECT I.[ImageId],[CategoryId],[Name],[Description],[OriginalFileName], "
 					+ "[Format],[RecordVersion],"
-					+ "CASE WHEN [MachineId] = ? THEN [LocalPath] ELSE NULL END AS [LocalPath], "
+					+ "[LocalPath], "
 					+ "[Width],[Height],[Size],[CameraMaker],[CameraModel],[Aperture],[ShutterSpeed],"
 					+ "[ISO],[Orientation],[TakenDateFile],[TakenDateMeta],[UploadDate],"
 					+ "[UdfChar1],[UdfChar2],[UdfChar3], "
@@ -279,9 +279,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			String selectTagSql = "SELECT DISTINCT TagId FROM TagImage WHERE ImageId=?";
 			
 			psMeta = conn.prepareStatement(selectSql);
-			psMeta.setLong(1, machineId);
-			psMeta.setLong(2, imageId);
-			psMeta.setLong(3, userId);
+			psMeta.setLong(1, imageId);
+			psMeta.setLong(2, userId);
 			rsMeta = psMeta.executeQuery();
 
 			if (!rsMeta.next())
@@ -392,7 +391,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 
 	public void CreateImage(long userId, ImageMeta newImage) throws WallaException 
 	{
-		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],[RecordVersion],[LastUpdated],[LocalPath],[MachineId],[UserId]) "
+		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],"
+				+ "[RecordVersion],[LastUpdated],[LocalPath],[UserAppId],[UserId]) "
 				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?,?)";
 		
 		String sqlMeta = "INSERT INTO [ImageMeta] ([ImageId],"
@@ -423,7 +423,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psImage.setInt(7, 1);
 			psImage.setInt(8, 0);
 			psImage.setString(9, newImage.getLocalPath());
-			psImage.setInt(10, newImage.getMachineId());
+			psImage.setInt(10, newImage.getUserAppId());
 			psImage.setLong(11, userId);
 			
 			//Validate new record was successful.

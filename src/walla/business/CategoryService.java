@@ -211,14 +211,14 @@ public class CategoryService {
 		}
 	}
 	
-	public ImageList GetCategoryWithImages(long userId, long categoryId, long machineId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
+	public ImageList GetCategoryWithImages(long userId, long categoryId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
 		try
 		{
 			//Check user can access category
 			//HttpStatus.UNAUTHORIZED.value()
 			
-			meLogger.debug("GetCategoryWithImages() begins. UserId:" + userId + " CategoryId:" + categoryId + "MachineId:" + machineId);
+			meLogger.debug("GetCategoryWithImages() begins. UserId:" + userId + " CategoryId:" + categoryId);
 
 			ImageList categoryImageList = null;
 
@@ -242,7 +242,7 @@ public class CategoryService {
 			categoryImageList.setTotalImageCount(totalImageCount);
 			if (totalImageCount > 0)
 			{
-				categoryDataHelper.GetCategoryImages(userId, machineId, imageCursor, size, categoryImageList);
+				categoryDataHelper.GetCategoryImages(userId, imageCursor, size, categoryImageList);
 			}
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());

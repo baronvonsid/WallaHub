@@ -155,57 +155,6 @@ public class TagService {
 		}
 	}
 	
-	/*
-	public ImageList GetTagWithImages(long userId, String tagName, long machineId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
-	{
-		try
-		{
-			//Check user can access tag
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetTagWithImages() begins. UserId:" + userId + " TagName:" + tagName + "MachineId:" + machineId);
-
-			//Get main tag for response.
-			ImageList tagImageList = tagDataHelper.GetTagImageListMeta(userId, tagName);
-			
-			//Check if tag list changed
-			if (clientVersionTimestamp != null)
-			{
-				Date lastUpdated = new Date(tagImageList.getLastChanged().toGregorianCalendar().getTimeInMillis());
-				if (!lastUpdated.after(clientVersionTimestamp))
-				{
-					meLogger.debug("No tag generated because server timestamp (" + lastUpdated.toString() + ") is not later than client timestamp (" + clientVersionTimestamp.toString() + ")");
-					customResponse.setResponseCode(HttpStatus.NOT_MODIFIED.value());
-					return null;
-				}
-			}
-			
-			//Get total count for the result set (if first request)
-			int totalImageCount = tagDataHelper.GetTotalImageCount(tagImageList.getId());
-			tagImageList.setTotalImageCount(totalImageCount);
-			if (totalImageCount > 0)
-			{
-				tagDataHelper.GetTagImages(userId, machineId, imageCursor, size, tagImageList);
-			}
-			
-			customResponse.setResponseCode(HttpStatus.OK.value());
-			
-			meLogger.debug("GetTagWithImages() has completed. UserId:" + userId);
-			return tagImageList;
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetTagWithImages");
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetTagWithImages", ex);
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
-		}
-	}
-	*/
-	
 	public TagList GetTagListForUser(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
 		try {
@@ -295,6 +244,31 @@ public class TagService {
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
 	//*************************************************************************************************************
+	
+	public void ReGenDynamicTags(long userId)
+	{
+		try
+		{
+			//Returns an array of affected tags.
+			long tags[] = tagDataHelper.ReGenDynamicTags(userId);
+			
+			for (int ii = 0; ii < tags.length; ii++)
+			{
+				long[] galleryIds = tagDataHelper.GetGalleriesLinkedToTag(userId, tags[ii]);
+				for (int i = 0; i < galleryIds.length; i++)
+				{
+					//TODO decouple
+					galleryService.RefreshGalleryImages(userId, galleryIds[i]);
+				}
+			}
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process ReGenDynamicTags");
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to proces ReGenDynamicTags", ex);
+		}
+	}
 	
 	//Must aggregate up requests
  	public void TagRippleUpdate(long userId, long tagId)

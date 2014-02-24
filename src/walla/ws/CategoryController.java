@@ -202,57 +202,6 @@ public class CategoryController {
 		}
 	}
 	
-	/*
-	//  GET /{userName}/category/{categoryId}/{imageCursor}/{size}
-	//  TODO add - Filter Selection - neName=simon,neName=simon, mtName=simon, ltName=simon, sortasc=Name, sortdesc=Desc
-	//  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/category/{categoryId}/{imageCursor}/{size}", method=RequestMethod.GET, 
-			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
-	public @ResponseBody ImageList GetCategoryImageList(
-			@PathVariable("categoryId") long categoryId,
-			@PathVariable("userName") String userName,
-			@PathVariable("imageCursor") int imageCursor,
-			@PathVariable("size") int size,
-			HttpServletRequest requestObject,
-			HttpServletResponse httpResponse)
-	{
-		Date clientVersionTimestamp = null;
-		
-		try
-		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get category image list request received, User:" + userName.toString() + ", CategoryId:" + categoryId);}
-		
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
-			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-				return null;
-			}
-			
-			long headerDateLong = requestObject.getDateHeader("If-Modified-Since");
-			if (headerDateLong > 0)
-			{
-				clientVersionTimestamp = new Date(headerDateLong);
-			}
-			
-			CustomResponse customResponse = new CustomResponse();
-			ImageList responseCategoryImageList = categoryService.GetCategoryWithImages(userId, categoryId, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get category image list completed, User:" + userName.toString() + ", CategoryId:" + categoryId);}
-			return responseCategoryImageList;
-		}
-		catch (Exception ex) {
-			meLogger.error("Received Exception in GetCategoryImageList", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
-		}
-	}
-	*/
-	
 	//  GET /{userName}/categories
 	//  No client caching.  Check client side version against db timestamp.
 	@RequestMapping(value="/{userName}/categories", method=RequestMethod.GET, 

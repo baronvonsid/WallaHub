@@ -129,7 +129,7 @@ public class GalleryViewer {
 					{
 						int imageListMax = 1000;
 						ImageList imageList = imageService.GetImageList(userId, "gallery", 
-								galleryName, -1, 0, 0, imageListMax, null, customResponse);
+								galleryName, -1, 0, imageListMax, null, customResponse);
 
 						if (customResponse.getResponseCode() == HttpStatus.OK.value())
 						{
@@ -202,7 +202,7 @@ public class GalleryViewer {
 			
 			CustomResponse customResponse = new CustomResponse();
 			
-			ImageList imageList = imageService.GetImageList(userId, "gallery", galleryName, sectionId, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
+			ImageList imageList = imageService.GetImageList(userId, "gallery", galleryName, sectionId, imageCursor, size, clientVersionTimestamp, customResponse);
 			//TODO change class based on gallery presentation settings.
 			boolean noName = true;
 			

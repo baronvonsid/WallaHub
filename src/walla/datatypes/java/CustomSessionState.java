@@ -11,7 +11,7 @@ public class CustomSessionState {
 	private long userId;
 	private UploadStatusList uploadStatusList;
 	private boolean initUploadList = false;
-	private long machineId = 100001;
+	private long userAppId = 100001;
 	private int platformId = 100;
 	//private List<UploadStatusList.ImageUploadRef> uploadImageList;
 
@@ -53,14 +53,14 @@ public class CustomSessionState {
 		initUploadList = value;
 	}
 	
-	public long getMachineId()
+	public long getUserAppId()
 	{
-		return this.machineId;
+		return this.userAppId;
 	}
 	
-	public void setMachineId(long value)
+	public void setUserAppId(long value)
 	{
-		this.machineId = value;
+		this.userAppId = value;
 	}
 	
 	public int getPlatformId()

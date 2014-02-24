@@ -20,7 +20,7 @@ public interface CategoryDataHelper {
 	public Date LastCategoryListUpdate(long userId) throws WallaException;
 	public ImageList GetCategoryImageListMeta(long userId, long categoryId) throws WallaException;
 	
-	public void GetCategoryImages(long userId, long machineId, int imageCursor, int imageCount, ImageList categoryImageList) throws WallaException;
+	public void GetCategoryImages(long userId, int imageCursor, int imageCount, ImageList categoryImageList) throws WallaException;
 	public CategoryList GetUserCategoryList(long userId) throws WallaException;
 	public int GetTotalImageCount(long userId, long categoryId) throws WallaException;
 	

@@ -108,7 +108,7 @@ public class ImageService {
 		}
 	}
 
-	public ImageMeta GetImageMeta(long userId, long imageId, long machineId, CustomResponse customResponse)
+	public ImageMeta GetImageMeta(long userId, long imageId, CustomResponse customResponse)
 	{
 		try {
 			//Check user can access tag list
@@ -117,7 +117,7 @@ public class ImageService {
 			meLogger.debug("GetImageMeta begins. UserId:" + userId + " ImageId:" + imageId);
 			
 			//Get tag list for response.
-			ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, machineId);
+			ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
 			if (imageMeta == null)
 			{
 				String error = "GetImageMeta didn't return a valid Image object";
@@ -331,12 +331,12 @@ public class ImageService {
 		}
 	}
 	
-	public ImageList GetImageList(long userId, String type, String identity, long sectionId, long machineId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
+	public ImageList GetImageList(long userId, String type, String identity, long sectionId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
 		//identity - For Category, this must be the category Id, for tags and galleries, this is the name.
 		try
 		{
-			meLogger.debug("GetImageList() begins. UserId:" + userId + " Type:" + type + " Name:" + identity.toString() + " MachineId:" + machineId);
+			meLogger.debug("GetImageList() begins. UserId:" + userId + " Type:" + type + " Name:" + identity.toString());
 
 			ImageList imageList = null;
 			switch (type.toUpperCase())
@@ -382,20 +382,20 @@ public class ImageService {
 				switch (type.toUpperCase())
 				{
 					case "TAG":
-						tagDataHelper.GetTagImages(userId, machineId, imageCursor, size, imageList);
+						tagDataHelper.GetTagImages(userId, imageCursor, size, imageList);
 						break;
 					case "CATEGORY":
-						categoryDataHelper.GetCategoryImages(userId, machineId, imageCursor, size, imageList);
+						categoryDataHelper.GetCategoryImages(userId,imageCursor, size, imageList);
 						break;
 					case "GALLERY":
-						galleryDataHelper.GetGalleryImages(userId, machineId, imageCursor, size, imageList);
+						galleryDataHelper.GetGalleryImages(userId, imageCursor, size, imageList);
 						break;
 				}
 			}
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			
-			meLogger.debug("GetImageList() has completed. UserId:" + userId + " Type:" + type + " Name:" + identity.toString() + " MachineId:" + machineId);
+			meLogger.debug("GetImageList() has completed. UserId:" + userId + " Type:" + type + " Name:" + identity.toString());
 			return imageList;
 		}
 		catch (WallaException wallaEx) {
@@ -487,7 +487,7 @@ public class ImageService {
 				String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 				if (imageFilePath.isEmpty())
 				{
-					ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
+					ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
 					if (imageMeta == null)
 					{
 						String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
@@ -563,7 +563,7 @@ public class ImageService {
 					String imageFilePath = GetFilePathIfExists(userId, folder, imageId);
 					if (imageFilePath.isEmpty())
 					{
-						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
+						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
 						if (imageMeta == null)
 						{
 							String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
@@ -626,7 +626,7 @@ public class ImageService {
 					String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
 					if (imageFilePath.isEmpty())
 					{
-						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
+						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
 						if (imageMeta == null)
 						{
 							String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
@@ -704,7 +704,7 @@ public class ImageService {
 				throw new WallaException("ImageService", "SetupNewImage", error, 0); 
 			}
 
-			ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId, 0);
+			ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
 			if (imageMeta == null)
 			{
 				String error = "SetupNewImage didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
@@ -790,6 +790,9 @@ public class ImageService {
 				}
 			}
 			
+			//TODO decouple
+			tagService.ReGenDynamicTags(userId);
+			
 			//TODO For the category, call CategoryRippleUpdates decoupled		
 			categoryService.CategoryRippleUpdate(userId, imageMeta.getCategoryId());
 			
@@ -855,6 +858,8 @@ public class ImageService {
 				categoryService.CategoryRippleUpdate(userId, categories[i]);
 			}
 
+			tagService.ReGenDynamicTags(userId);
+			
 			//Clear up physical files.
 			//Remove all temporary files stored.
 			//Archive originals into Glacial storage.

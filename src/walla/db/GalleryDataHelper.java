@@ -20,7 +20,7 @@ public interface GalleryDataHelper {
 	public Date LastGalleryListUpdate(long userId) throws WallaException;
 	public ImageList GetGalleryImageListMeta(long userId, String galleryName, long sectionId) throws WallaException;
 	public Gallery GetGalleryMeta(long userId, String galleryName) throws WallaException;
-	public void GetGalleryImages(long userId, long machineId, int imageCursor, int imageCount, ImageList galleryImageList) throws WallaException;
+	public void GetGalleryImages(long userId, int imageCursor, int imageCount, ImageList galleryImageList) throws WallaException;
 	public GalleryList GetUserGalleryList(long userId) throws WallaException;
 	//public int GetTotalImageCount(long galleryId) throws WallaException;
 	//public void UpdateGalleryTimestamp(long galleryId) throws WallaException;

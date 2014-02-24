@@ -22,10 +22,11 @@ public interface TagDataHelper {
 	public Date LastTagListUpdate(long userId) throws WallaException;
 	public ImageList GetTagImageListMeta(long userId, String tagName) throws WallaException;
 	public Tag GetTagMeta(long userId, String tagName) throws WallaException;
-	public void GetTagImages(long userId, long machineId, int imageCursor, int imageCount, ImageList tagImageList) throws WallaException;
+	public void GetTagImages(long userId, int imageCursor, int imageCount, ImageList tagImageList) throws WallaException;
 	public TagList GetUserTagList(long userId) throws WallaException;
 	public int GetTotalImageCount(long tagId) throws WallaException;
 	public void UpdateTagTimeAndCount(long userId, long tagId) throws WallaException;
 	public void AddRemoveTagImages(long userId, long tagId, ImageMoveList moveList, boolean add) throws WallaException;
 	public long[] GetGalleriesLinkedToTag(long userId, long tagId) throws WallaException;
+	public long[] ReGenDynamicTags(long userId) throws WallaException;
 }

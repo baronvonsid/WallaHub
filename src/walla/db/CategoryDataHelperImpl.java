@@ -46,8 +46,9 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 	
 	public void CreateCategory(long userId, Category newCategory, long categoryId) throws WallaException
 	{
-		String sql = "INSERT INTO [dbo].[Category] ([CategoryId],[ParentId],[Name],[Description],[ImageCount],[LastUpdated],[RecordVersion],[UserId],[Active]) "
-					+ "VALUES (?,?,?,?,0,dbo.GetDateNoMS(),?,?,1)";
+		String sql = "INSERT INTO [dbo].[Category] ([CategoryId],[ParentId],[Name],[Description],"
+					+ "[ImageCount],[LastUpdated],[RecordVersion],[Active],[SystemLocked],[UserId]) "
+					+ "VALUES (?,?,?,?,0,dbo.GetDateNoMS(),1,1,?,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -73,11 +74,8 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			ps.setLong(2, newCategory.getParentId());
 			ps.setString(3, newCategory.getName());
 			ps.setString(4, newCategory.getDesc());
-			ps.setInt(5, 1);
+			ps.setBoolean(5, newCategory.isSystemOwned());
 			ps.setLong(6, userId);
-			
-			//ps.setLong(7, newCategory.getParentId());
-			//ps.setLong(8, userId);
 			
 			//Execute insert statement.
 			returnCount = ps.executeUpdate();
@@ -261,7 +259,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [CategoryId],[ParentId],[Name],[Description],[LastUpdated],[RecordVersion] FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
+			String selectSql = "SELECT [CategoryId],[ParentId],[Name],[Description],[LastUpdated],[RecordVersion],[SystemOwned] FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, userId);
@@ -278,7 +276,8 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			category.setParentId(resultset.getLong(2));
 			category.setName(resultset.getString(3));
 			category.setDesc(resultset.getString(4));
-			
+			category.setSystemOwned(resultset.getBoolean(5));
+
 			GregorianCalendar oldGreg = new GregorianCalendar();
 			oldGreg.setTime(resultset.getTimestamp(5));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
@@ -313,7 +312,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [CategoryId],[Name],[Description],[ImageCount],[LastUpdated],[RecordVersion] FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
+			String selectSql = "SELECT [CategoryId],[Name],[Description],[ImageCount],[LastUpdated],[RecordVersion],[SystemOwned] FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
 			ps = conn.prepareStatement(selectSql);
 
 			ps.setLong(1, userId);
@@ -334,12 +333,14 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			categoryImageList.setName(resultset.getString(2));
 			categoryImageList.setDesc(resultset.getString(3));
 			categoryImageList.setTotalImageCount(resultset.getInt(4));
+			
 			GregorianCalendar oldGreg = new GregorianCalendar();
 			oldGreg.setTime(resultset.getTimestamp(5));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			
 			categoryImageList.setLastChanged(xmlOldGreg);
 			categoryImageList.setVersion(resultset.getInt(6));
+			categoryImageList.setSystemOwned(resultset.getBoolean(7));
 			
 			resultset.close();
 			return categoryImageList;
@@ -451,7 +452,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 	}
 	
 	// TODO Add search facility
-	public void GetCategoryImages(long userId, long machineId, int imageCursor, int imageCount, ImageList categoryImageList) throws WallaException
+	public void GetCategoryImages(long userId, int imageCursor, int imageCount, ImageList categoryImageList) throws WallaException
 	{
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -547,7 +548,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			conn = dataSource.getConnection();
 			
 			//TODO add logic so categories with inactive parents are excluded.			
-			String selectSql = "SELECT C.[CategoryId],C.[ParentId],C.[Name],C.[Description],C.[ImageCount] "
+			String selectSql = "SELECT C.[CategoryId],C.[ParentId],C.[Name],C.[Description],C.[ImageCount],C.[SystemOwned] "
 					+ "FROM [dbo].[Category] C WHERE [Active] = 1 AND [UserId] = " + userId;
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -564,7 +565,9 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				newCategoryRef.setParentId(resultset.getLong(2));
 				newCategoryRef.setName(resultset.getString(3));
 				newCategoryRef.setDesc(resultset.getString(4));
-				newCategoryRef.setCount(resultset.getInt(5));				
+				newCategoryRef.setCount(resultset.getInt(5));	
+				newCategoryRef.setSystemOwned(resultset.getBoolean(6));
+				
 				categoryList.getCategoryRef().add(newCategoryRef);
 			}
 			

@@ -10,6 +10,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import javax.servlet.ServletOutputStream;
 
 import org.apache.log4j.Logger;
@@ -178,6 +181,21 @@ public final class UserTools {
 	{
 		double newSize = (double)size / 1024.0 / 1024.0;
 		return DoRound(newSize, 2) + "MB";
+	}
+	
+	public static boolean ValidEmailAddress(String email)
+	{
+		Pattern p = Pattern.compile(".+@.+\\.[a-z]+");
+		Matcher m = p.matcher(email);
+		return m.matches();
+	}
+	
+	public static boolean CheckPasswordStrength(String password)
+	{
+		//Match a string at least 8 characters long, with at least one lower case and at least one uppercase letter 
+		Pattern p = Pattern.compile("^.*(?=.{8,})(?=.*[a-z])(?=.*[A-Z]).*$");
+		Matcher m = p.matcher(password);
+		return m.matches();
 	}
 	
 }

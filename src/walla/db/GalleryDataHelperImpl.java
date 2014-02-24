@@ -802,7 +802,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 	*/
 	
 	// TODO Add search,sort facility
-	public void GetGalleryImages(long userId, long machineId, int imageCursor, int imageCount, ImageList galleryImageList) throws WallaException
+	public void GetGalleryImages(long userId, int imageCursor, int imageCount, ImageList galleryImageList) throws WallaException
 	{
 		Connection conn = null;
 		PreparedStatement ps = null;

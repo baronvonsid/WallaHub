@@ -28,14 +28,14 @@ import walla.utils.*;
 import org.springframework.http.HttpStatus;
 
 @Repository
-public class TagDataHelperImpl implements TagDataHelper {
+public class AccountDataHelperImpl implements AccountDataHelper {
 
 	private DataSource dataSource;
 	
-	private static final Logger meLogger = Logger.getLogger(TagDataHelperImpl.class);
+	private static final Logger meLogger = Logger.getLogger(AccountDataHelperImpl.class);
 
-	public TagDataHelperImpl() {
-		meLogger.debug("TagDataHelperImpl object instantiated.");
+	public AccountDataHelperImpl() {
+		meLogger.debug("AccountDataHelperImpl object instantiated.");
 	}
 	
 	public void setDataSource(DataSource dataSource)
@@ -43,70 +43,159 @@ public class TagDataHelperImpl implements TagDataHelper {
 		this.dataSource = dataSource;
 	}
 	
-	public void CreateTag(long userId, Tag newTag, long newId) throws WallaException
+	public long CreateAccount(Account newAccount) throws WallaException
 	{
-		String sql = "INSERT INTO [Tag] ([TagId],[Name],[Description],[SystemOwned], "
-				+ "[DefinitionId],[ImageCount],[LastUpdated],[RecordVersion],[UserId]) "
-				+ "VALUES (?,?,?,0,0,0,dbo.GetDateNoMS(),1,?)";
-		
 		Connection conn = null;
-		PreparedStatement ps = null;
-		PreparedStatement bs = null;
+		CallableStatement createSproc = null;
 
 		try {			
-			int controlCount = 0;
 			int returnCount = 0;
-			long newTagId = newId;
-			int[] responseCounts = null;
-			
-			meLogger.debug("CreateTag() begins. UserId:" + userId + " TagName:" + newTag.getName());
-			
-			conn = dataSource.getConnection();
-			conn.setAutoCommit(false);
-			
-			//Insert main tag record.
-			ps = conn.prepareStatement(sql);
-			ps.setLong(1, newTagId);
-			ps.setString(2, newTag.getName());
-			ps.setString(3, newTag.getDesc());
-			ps.setLong(4, userId);
-			
-			//Execute insert statement.
-			returnCount = ps.executeUpdate();
-			
-			//Validate new record was successful.
-			if (returnCount != 1)
-			{
-				conn.rollback();
-				String error = "Insert statement didn't return a success count of 1.";
-				meLogger.error(error);
-				throw new WallaException(this.getClass().getName(), "CreateTag", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 				
-			}
 
-			meLogger.debug("CreateTag() ends. UserId:" + userId + " TagName:" + newTag.getName());
+			//Execute SetupNewUser 'Stanley', 'Stanley Prem', 'stanley@fotowalla.com', 'Stan-a-rillo', 1
+
+			conn = dataSource.getConnection();
+			conn.setAutoCommit(true);
 			
-			conn.commit();
+			String sprocSql = "EXEC [dbo].[SetupNewUser] ?, ?, ?, ?, ?, ?";
 				
-		} catch (SQLException sqlEx) {
-			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateTag", sqlEx);
-			throw new WallaException(sqlEx,0);
+			createSproc = conn.prepareCall(sprocSql);
+			createSproc.setString(1, newAccount.getProfileName());
+			createSproc.setString(2, newAccount.getDesc());
+			createSproc.setString(3, newAccount.getEmail());
+			createSproc.setString(4, newAccount.getPassword());
+			createSproc.setInt(5, newAccount.getAccountType());
+			createSproc.registerOutParameter(6, Types.INTEGER);
+			createSproc.execute();
+			    
+		    long newUserId = createSproc.getLong(6);
+		    if (newUserId < 1)
+		    {
+		    	String error = "SetupNewUser sproc didn't return a valid user number";
+				meLogger.error(error);
+				throw new WallaException(this.getClass().getName(), "CreateAccount", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+		    }
+
+			meLogger.debug("CreateAccount() completes OK. UserId:" + newUserId);
+			return newUserId;
+		} 
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in CreateAccount", sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} catch (WallaException wallaEx) {
 			throw wallaEx;
 		}
 		catch (Exception ex) {
-			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in CreateTag", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error("Unexpected Exception in CreateAccount", ex);
+			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		finally {
-	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
-	        if (bs != null) try { bs.close(); } catch (SQLException logOrIgnore) {}
+	        if (createSproc != null) try { createSproc.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
 		}
 	}
+
 	
+	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException
+	{
+		Connection conn = null;
+		Statement sQuery = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+			
+			String selectSql = "SELECT 1 FROM [User] WHERE UPPER([ProfileName]) = UPPER('" + profileName + "')";
+			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+			resultset = sQuery.executeQuery(selectSql);
+			if (resultset.next())
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in CheckProfileNameIsUnique", sqlEx);
+			throw new WallaException(sqlEx,0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
+	public Account GetAccount(long userId) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		Account account = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [ProfileName],[Description],[Email],[Status],[AccountTypeName],[RecordVersion],[OpenDate],[CloseDate],[StorageGBLimit],"
+								+ "[StorageGBCurrent],[TotalImages],[MonthlyUploadCap],[UploadCount30Days] FROM [dbo].[AccountSummary] "
+								+ "WHERE [UserId] = ?";
+							
+			ps = conn.prepareStatement(selectSql);
+			ps.setLong(1, userId);
+
+			resultset = ps.executeQuery();
+
+			if (!resultset.next())
+			{
+				return null;
+			}
+			
+			account = new Account();
+			account.setId(userId);
+			account.setProfileName(resultset.getString(1));
+			account.setDesc(resultset.getString(2));
+			account.setEmail(resultset.getString(3));
+			account.setStatus(resultset.getInt(4));
+			account.setAccountTypeName(resultset.getString(5));
+			account.setVersion(resultset.getInt(6));
+			
+			GregorianCalendar oldGreg = new GregorianCalendar();
+			oldGreg.setTime(resultset.getTimestamp(7));
+			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+			account.setOpenDate(xmlOldGreg);
+			
+			oldGreg.setTime(resultset.getTimestamp(8));
+			xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+			account.setCloseDate(xmlOldGreg);
+			
+			account.setStorageGBLimit(resultset.getDouble(9));
+			account.setStorageGBCurrent(resultset.getDouble(10));
+			account.setTotalImages(resultset.getInt(11));
+			account.setMonthlyUploadCap(resultset.getInt(12));
+			account.setUploadCount30Days(resultset.getInt(13));
+
+			return account;
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetAccount", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetAccount", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
+
+	
+	
+	/*
 	public void UpdateTag(long userId, Tag existingTag) throws WallaException
 	{
 		Connection conn = null;
@@ -170,7 +259,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			String deleteSql = "DELETE FROM [Tag] WHERE [TagId]= ? AND [RecordVersion] = ? AND [UserId] = ? AND [Name] = ? AND [SystemOwned] = 0"; 
+			String deleteSql = "DELETE FROM [Tag] WHERE [TagId]= ? AND [RecordVersion] = ? AND [UserId] = ? AND [Name] = ?"; 
 			ps = conn.prepareStatement(deleteSql);
 			ps.setLong(1, tagId);
 			ps.setInt(2, version);
@@ -269,7 +358,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [TagId],[Name],[Description],[SystemOwned],[LastUpdated],[RecordVersion] FROM [dbo].[Tag] WHERE [UserId] = ? AND [Name]= ?";
+			String selectSql = "SELECT [TagId],[Name],[Description],[LastUpdated],[RecordVersion] FROM [dbo].[Tag] WHERE [UserId] = ? AND [Name]= ?";
 			ps = conn.prepareStatement(selectSql);
 			//ps.setFetchDirection(ResultSet.TYPE_FORWARD_ONLY);
 			ps.setLong(1, userId);
@@ -286,14 +375,13 @@ public class TagDataHelperImpl implements TagDataHelper {
 			tag.setId(resultset.getLong(1));
 			tag.setName(resultset.getString(2));
 			tag.setDesc(resultset.getString(3));
-			tag.setSystemOwned(resultset.getBoolean(4));
 			
 			GregorianCalendar oldGreg = new GregorianCalendar();
-			oldGreg.setTime(resultset.getTimestamp(5));
+			oldGreg.setTime(resultset.getTimestamp(4));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			
 			tag.setLastChanged(xmlOldGreg);
-			tag.setVersion(resultset.getInt(6));
+			tag.setVersion(resultset.getInt(5));
 			
 			return tag;
 		}
@@ -322,8 +410,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 		try {
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [TagId],[Name],[Description],[ImageCount],[LastUpdated],"
-					+ "[RecordVersion],[SystemOwned] FROM [dbo].[Tag] WHERE [UserId] = ? AND [Name]= ?";
+			String selectSql = "SELECT [TagId],[Name],[Description],[ImageCount],[LastUpdated],[RecordVersion] FROM [dbo].[Tag] WHERE [UserId] = ? AND [Name]= ?";
 			ps = conn.prepareStatement(selectSql);
 
 			ps.setLong(1, userId);
@@ -352,7 +439,6 @@ public class TagDataHelperImpl implements TagDataHelper {
 			
 			tagImageList.setLastChanged(xmlOldGreg);
 			tagImageList.setVersion(resultset.getInt(6));
-			tagImageList.setSystemOwned(resultset.getBoolean(7));
 			
 			resultset.close();
 			return tagImageList;
@@ -463,7 +549,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 	}
 	
 	// TODO Add search facility
-	public void GetTagImages(long userId, int imageCursor, int imageCount, ImageList tagImageList) throws WallaException
+	public void GetTagImages(long userId, long machineId, int imageCursor, int imageCount, ImageList tagImageList) throws WallaException
 	{
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -564,7 +650,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			String selectSql = "SELECT t.[TagId], t.[Name], t.[Description], [ImageCount], [SystemOwned] FROM "
+			String selectSql = "SELECT t.[TagId], t.[Name], t.[Description], [ImageCount] FROM "
 					+ "Tag t WHERE t.[UserId] = " + userId + " ORDER BY t.[Name]";
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -580,8 +666,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 				newTagRef.setId(resultset.getLong(1));
 				newTagRef.setName(resultset.getString(2));
 				newTagRef.setDesc(resultset.getString(3));
-				newTagRef.setCount(resultset.getInt(4));	
-				newTagRef.setSystemOwned(resultset.getBoolean(5));
+				newTagRef.setCount(resultset.getInt(4));				
 				tagList.getTagRef().add(newTagRef);
 			}
 			
@@ -787,67 +872,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
 		}
 	}
-	
-	public long[] ReGenDynamicTags(long userId) throws WallaException
-	{
-		Connection conn = null;
-		Statement statement = null;
-		ResultSet resultset = null;
-		
-		try {			
-			conn = dataSource.getConnection();
-
-			String executeSql = "EXECUTE dbo.[ReGenDynamicTags] " + userId;
-
-			statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-			
-			resultset = statement.executeQuery(executeSql);
-
-			int size = 0;
-			try {
-				resultset.last();
-			    size = resultset.getRow();
-			    resultset.beforeFirst();
-			}
-			catch(Exception ex) {}
-			
-			long[] returnTagId = new long[size];
-			for (int i = 0; i < size; i++)
-			{
-				resultset.next();
-				returnTagId[i] = resultset.getLong(1);
-			}
-			
-			return returnTagId;
-		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in ReGenDynamicTags", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in ReGenDynamicTags", ex);
-			throw new WallaException(ex, 0);
-		}
-		finally {
-			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
-			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
-	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
-		}
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	*/
 }
 
 

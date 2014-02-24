@@ -191,9 +191,10 @@ public class ImageController {
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
 				return null;
 			}
+			//this.sessionState.getMachineId()
 			
 			CustomResponse customResponse = new CustomResponse();
-			ImageMeta responseImageMeta = imageService.GetImageMeta(userId, imageId, this.sessionState.getMachineId(), customResponse);
+			ImageMeta responseImageMeta = imageService.GetImageMeta(userId, imageId, customResponse);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetImageMeta request completed, User:" + userName.toString() + ", ImageId:" + imageId);}
 			
@@ -388,8 +389,8 @@ public class ImageController {
 				sectionId = Long.parseLong(paramSectionId);
 			
 			//Thread.sleep(2000);
-			
-			ImageList responseImageList = imageService.GetImageList(userId, type, identity, sectionId, this.sessionState.getMachineId(), imageCursor, size, clientVersionTimestamp, customResponse);
+			// this.sessionState.getMachineId(),
+			ImageList responseImageList = imageService.GetImageList(userId, type, identity, sectionId, imageCursor, size, clientVersionTimestamp, customResponse);
 			
 			httpResponse.addHeader("Cache-Control", "no-cache");
 			httpResponse.setStatus(customResponse.getResponseCode());
@@ -501,10 +502,12 @@ public class ImageController {
 				return;
 			}
 
+			// this.sessionState.getMachineId()
+			
 			//TODO check session allows original download.
 			File file = null;
 			CustomResponse customResponse = new CustomResponse();
-			ImageMeta responseImageMeta = imageService.GetImageMeta(userId, imageId, this.sessionState.getMachineId(), customResponse);
+			ImageMeta responseImageMeta = imageService.GetImageMeta(userId, imageId,customResponse);
         	if (customResponse.getResponseCode() == HttpStatus.OK.value())
         	{
         		if (responseImageMeta.getStatus().intValue() != 3)
