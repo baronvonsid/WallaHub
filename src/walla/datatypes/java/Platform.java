@@ -3,7 +3,10 @@ package walla.datatypes.java;
 public class Platform {
 
 	private int platformId;
-	private int listNumber;
+	private String operatingSystem;
+	private String machineType;
+	private String shortName;
+	private boolean supported;
 	
 	public Platform() {
 		// TODO Auto-generated constructor stub
@@ -19,13 +22,43 @@ public class Platform {
 		return this.platformId;
 	}
 	
-	public void setListNumber(int listNumber)
+	public void setOperatingSystem(String operatingSystem)
 	{
-		this.listNumber = listNumber;
+		this.operatingSystem = operatingSystem;
 	}
 	
-	public int getListNumber()
+	public String getOperatingSystem()
 	{
-		return this.listNumber;
+		return this.operatingSystem;
+	}
+	
+	public void setMachineType(String machineType)
+	{
+		this.machineType = machineType;
+	}
+	
+	public String getMachineType()
+	{
+		return this.machineType;
+	}
+	
+	public void setShortName(String shortName)
+	{
+		this.shortName = shortName;
+	}
+	
+	public String getShortName()
+	{
+		return this.shortName;
+	}
+	
+	public void setSupported(boolean supported)
+	{
+		this.supported = supported;
+	}
+	
+	public boolean getSupported()
+	{
+		return this.supported;
 	}
 }

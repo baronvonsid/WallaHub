@@ -97,6 +97,10 @@
 		<property name="dataSource" ref="meSqlDataSource" />
 	</bean>
 	
+	<bean id="accountDataHelper" class="walla.db.AccountDataHelperImpl" scope="prototype">
+		<property name="dataSource" ref="meSqlDataSource" />
+	</bean>
+	
 	<bean id="tagServiceTarget" class="walla.business.TagService" scope="prototype">
 		<property name="tagDataHelper" ref="tagDataHelper" />
 		<property name="cachedData" ref="cachedData" />
@@ -181,6 +185,27 @@
 	
 	<bean id="imageService" class="org.springframework.aop.framework.ProxyFactoryBean">
 	  <property name="targetSource" ref="imagePoolTargetSource"/>
+	</bean>
+
+
+	<bean id="accountServiceTarget" class="walla.business.AccountService" scope="prototype">
+		<property name="accountDataHelper" ref="accountDataHelper" />
+		<property name="cachedData" ref="cachedData" />
+		<property name="utilityDataHelper" ref="utilityDataHelper" />
+		<property name="tagService" ref="tagService" />
+		<property name="categoryService" ref="categoryService" />
+		<property name="galleryService" ref="galleryService" />
+	</bean>
+
+	<bean id="accountPoolTargetSource" class="org.springframework.aop.target.CommonsPoolTargetSource">
+	  <property name="targetBeanName" value="accountServiceTarget"/>
+	  <property name="maxSize" value="2"/>
+	  <property name="maxIdle" value="2"/>
+	  <property name="minIdle" value="2"/>
+	</bean>
+	
+	<bean id="accountService" class="org.springframework.aop.framework.ProxyFactoryBean">
+	  <property name="targetSource" ref="accountPoolTargetSource"/>
 	</bean>
 
 </beans> 

@@ -816,10 +816,10 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			if (galleryImageList.getSectionId() >= 0)
 			{
 				//With Section Filter.
-				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
+				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDate],"
 						+ " [RecordVersion], [ISO], [Aperture], [ShutterSpeed], [Size] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[RecordVersion], im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,"
+						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDate],"
 						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId "
 						+ " INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
@@ -834,10 +834,10 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			}
 			else
 			{
-				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
+				selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDate],"
 						+ " [RecordVersion], [ISO], [Aperture], [ShutterSpeed], [Size] "
 						+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-						+ " i.[RecordVersion], im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,"
+						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDate],"
 						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 ) AS RR"

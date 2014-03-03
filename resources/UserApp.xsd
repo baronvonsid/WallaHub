@@ -7,14 +7,16 @@ targetNamespace="http://www.example.org/UserApp"
   <element name="UserApp">
     <complexType>
       <sequence maxOccurs="1" minOccurs="0">
+      	  <element type="int" name="AppId" />
 	      <element type="int" name="PlatformId" />
+	      <element type="string" name="MachineName" />
 	      <element type="date" name="LastUsed" />
 	      <element type="long" name="TagId" default="0" />
 	      <element type="long" name="CategoryId" default="0" />
 	      <element type="long" name="GalleryId" default="0" />
 	      <element type="int" name="ThumbCacheSizeMB" />
 	      <element type="int" name="MainCopyCacheSizeMB" />
-	      <element type="int" name="ImageFetchSize" />
+	      <element type="int" name="FetchSize" />
 	      <element type="string" name="MainCopyFolder" />
 	      <element type="string" name="AutoUploadFolder" />
 	      <element type="boolean" name="AutoUpload" />

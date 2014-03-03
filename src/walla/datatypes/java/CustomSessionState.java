@@ -13,6 +13,8 @@ public class CustomSessionState {
 	private boolean initUploadList = false;
 	private long userAppId = 100001;
 	private int platformId = 100;
+	private int appId = 100;
+	
 	//private List<UploadStatusList.ImageUploadRef> uploadImageList;
 
 	public String getUserName()
@@ -71,6 +73,16 @@ public class CustomSessionState {
 	public void setPlatformId(int value)
 	{
 		this.platformId = value;
+	}
+	
+	public int getAppId()
+	{
+		return this.appId;
+	}
+	
+	public void setAppId(int appId)
+	{
+		this.appId = appId;
 	}
 	/*
     public List<UploadStatusList.ImageUploadRef> getImageUploadRefList() {

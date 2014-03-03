@@ -455,8 +455,6 @@ public class ImageService {
 		}
 	}
 	
-	
-	
 	public File GetOriginalImageFile(long userId, long imageId, CustomResponse customResponse)
 	{
 		try

@@ -473,10 +473,10 @@ public class TagDataHelperImpl implements TagDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
+			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDate],"
 					+ " [RecordVersion], [CategoryId], [ISO], [Aperture], [ShutterSpeed], [Size] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " i.[RecordVersion],im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta, i.[CategoryId],"
+					+ " i.[RecordVersion],im.[UploadDate],im.[TakenDate], i.[CategoryId],"
 					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE ti.[TagId] = ? AND i.Status = 3 ) AS RR"

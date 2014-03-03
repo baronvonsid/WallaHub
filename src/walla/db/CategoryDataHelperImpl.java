@@ -462,10 +462,10 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDateMeta],"
+			String selectSql = "SELECT [Rank],[ImageId],[Name],[Description],[UploadDate],[TakenDate],"
 					+ " [RecordVersion], [CategoryId], [ISO], [Aperture], [ShutterSpeed], [Size] "
 					+ " FROM(   SELECT RANK() OVER (ORDER BY i.[Name], i.[ImageId]) as [Rank], i.[ImageId],i.[Name],i.[Description], "
-					+ " im.[UploadDate],COALESCE(im.[TakenDateMeta], im.[TakenDateFile]) AS TakenDateMeta,i.[RecordVersion], i.[CategoryId],"
+					+ " im.[UploadDate],im.[TakenDate],i.[RecordVersion], i.[CategoryId],"
 					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM Image i INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
 					+ " WHERE i.[CategoryId] = ? AND i.Status = 3 ) AS RR"

@@ -90,6 +90,18 @@ public final class ImageUtilityHelper
 				return response;
 		}
 
+		if (imageMeta.getTakenDate() == null)
+		{
+			if (imageMeta.getTakenDateMeta() != null)
+			{
+				imageMeta.setTakenDate(imageMeta.getTakenDateMeta());
+			}
+			else
+			{
+				imageMeta.setTakenDate(imageMeta.getTakenDateFile());
+			}
+		}
+		
 		return "OK";
 		/*
 		for (Directory directory : fileMetaData.getDirectories()) 

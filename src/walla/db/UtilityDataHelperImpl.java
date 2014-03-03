@@ -41,8 +41,8 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		
 		try {			
 			conn = dataSource.getConnection();
-			
-			String selectSql = "SELECT [PlatformId],[Name],[ThumbHeight],[ThumbWidth],[ViewHeight],[ViewWidth],[ListNumber],[Supported] FROM [Platform]";
+
+			String selectSql = "SELECT [PlatformId],[ShortName],[OperatingSystem],[MachineType],[Supported] FROM [Platform]";
 			
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -53,7 +53,10 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			{
 				Platform platform = new Platform();
 				platform.setPlatformId(resultset.getInt(1));
-				platform.setListNumber(resultset.getInt(7));
+				platform.setShortName(resultset.getString(2));
+				platform.setOperatingSystem(resultset.getString(3));
+				platform.setMachineType(resultset.getString(4));
+				platform.setSupported(resultset.getBoolean(5));
 				platformList.add(platform);
 			}
 			resultset.close();

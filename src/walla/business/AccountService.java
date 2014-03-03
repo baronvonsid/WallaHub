@@ -26,6 +26,10 @@ public class AccountService {
 
 	private AccountDataHelperImpl accountDataHelper;
 	private UtilityDataHelperImpl utilityDataHelper;
+	private TagService tagService;
+	private CategoryService categoryService;
+	private GalleryService galleryService;
+	
 	private CachedData cachedData;
 	
 	private static final Logger meLogger = Logger.getLogger(AccountService.class);
@@ -43,7 +47,6 @@ public class AccountService {
 		5 - live
 		6 - shutdown pending
 		7 - closed
-
 	 */
 	
 	//Create Account (Brief details) + Email.
@@ -54,50 +57,76 @@ public class AccountService {
 	//Account close requested
 	//Account close completed
 
-	public int CreateAccount(Account newAccount)
+	public int CreateUpdateAccount(long userId, Account account)
 	{
 		try 
 		{
-			meLogger.debug("CreateAccount() begins.  Email: " + newAccount.getEmail());
-
-			if (!UserTools.ValidEmailAddress(newAccount.getEmail()))
+			if (userId == 0)
 			{
-				String error = "Account create failed, email doesn't fit a standard form.  Email:" + newAccount.getEmail();
-				meLogger.error(error);
-				return HttpStatus.BAD_REQUEST.value();
+				meLogger.debug("CreateUpdateAccount() begins.  New Account.  Email: " + account.getEmail());
+				
+				//Create new account
+				if (!UserTools.ValidEmailAddress(account.getEmail()))
+				{
+					String error = "Account create failed, email doesn't fit a standard form.  Email:" + account.getEmail();
+					meLogger.error(error);
+					return HttpStatus.BAD_REQUEST.value();
+				}
+				
+				if (!UserTools.CheckPasswordStrength(account.getPassword()))
+				{
+					String error = "Account create failed, password does not meet minimum complexity rules." + account.getPassword();
+					meLogger.error(error);
+					return HttpStatus.BAD_REQUEST.value();
+				}
+				
+				if (!accountDataHelper.CheckProfileNameIsUnique(account.getProfileName()))
+				{
+					String error = "Profile name is already in use.  " + account.getProfileName();
+					meLogger.error(error);
+					return HttpStatus.BAD_REQUEST.value();
+				}
+	
+				long newUserId = accountDataHelper.CreateAccount(account);
+				account.setId(newUserId);
+				
+				//TODO decouple.
+				SendEmailConfirm(newUserId);
+				
+				meLogger.debug("CreateUpdateAccount() has created a new account.  Email: " + account.getEmail() + " UserId:" + newUserId);
+				return HttpStatus.CREATED.value();
 			}
-			
-			if (!UserTools.CheckPasswordStrength(newAccount.getPassword()))
+			else
 			{
-				String error = "Account create failed, password does not meet minimum complexity rules." + newAccount.getPassword();
-				meLogger.error(error);
-				return HttpStatus.BAD_REQUEST.value();
-			}
-			
-			if (!accountDataHelper.CheckProfileNameIsUnique(newAccount.getProfileName()))
-			{
-				String error = "Profile name is already in use.  " + newAccount.getProfileName();
-				meLogger.error(error);
-				return HttpStatus.BAD_REQUEST.value();
-			}
+				meLogger.debug("CreateUpdateAccount() begins.  Existing Account.  UserId: " + userId);
+				
+				//Create new account
+				if (userId != account.getId())
+				{
+					String error = "Account update failed, user ids don't match.  UserId: " + userId;
+					meLogger.error(error);
+					return HttpStatus.BAD_REQUEST.value();
+				}
+				
+				if (!UserTools.CheckPasswordStrength(account.getPassword()))
+				{
+					String error = "Account update failed, password does not meet minimum complexity rules." + account.getPassword();
+					meLogger.error(error);
+					return HttpStatus.BAD_REQUEST.value();
+				}
+	
+				accountDataHelper.UpdateAccount(userId, account);
 
-			long newUserId = accountDataHelper.CreateAccount(newAccount);
-			newAccount.setId(newUserId);
-			
-			//TODO decouple.
-			SendEmailConfirm(newUserId);
-			
-			meLogger.debug("CreateAccount() has completed.  Email: " + newAccount.getEmail() + " UserId:" + newUserId);
-			
-			return HttpStatus.CREATED.value();
-
+				meLogger.debug("CreateUpdateAccount() has updated the account.  UserId:" + userId);
+				return HttpStatus.OK.value();
+			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateAccount");
+			meLogger.error("Unexpected error when trying to process CreateUpdateAccount");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CreateNewAccount", ex);
+			meLogger.error("Unexpected error when trying to process CreateUpdateAccount", ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
 	}
@@ -143,46 +172,128 @@ public class AccountService {
 		return 0;
 	}
 
-	public long RegisterUserApp(long userId, UserApp newUserApp, CustomResponse customResponse)
+	public long CreateUserApp(long userId, int appId, int platformId, UserApp proposedUserApp, CustomResponse customResponse)
 	{
 		try {
 			//Check user can access tag list
 			//HttpStatus.UNAUTHORIZED.value()
 			
-			meLogger.debug("RegisterUserApp() begins. UserId:" + userId);
+			meLogger.debug("CreateUserApp() begins. UserId:" + userId);
 			
-			//Create new system owned tag.
+			UserApp newUserApp = new UserApp();
+			long userAppId = utilityDataHelper.GetNewId("UserAppId");
+			
+			App app = accountDataHelper.GetApp(appId, "");
+			newUserApp.setId(userAppId);
+			newUserApp.setFetchSize(app.getDefaultFetchSize());
+			newUserApp.setThumbCacheSizeMB(app.getDefaultThumbCacheMB());
+			newUserApp.setMainCopyCacheSizeMB(app.getDefaultMainCopyCacheMB());
+			newUserApp.setAutoUpload(false);
+			newUserApp.setAutoUploadFolder("");
+			
+			//Create or find new userapp tag (system owned).
+			newUserApp.setTagId(tagService.CreateOrFindUserAppTag(userId, platformId, proposedUserApp.getMachineName()));
 			
 			//Create new auto upload category. 
+			newUserApp.setCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, newUserApp.getMachineName()));
 			
 			//Get default gallery.
+			newUserApp.setGalleryId(galleryService.GetDefaultGallery(appId));
 			
-			//Get application, to use defaults.
+			if (!proposedUserApp.getMachineName().isEmpty())
+				newUserApp.setMachineName(proposedUserApp.getMachineName());
 			
+			if (proposedUserApp.isAutoUpload())
+				newUserApp.setAutoUpload(true);
+			
+			if (!proposedUserApp.getAutoUploadFolder().isEmpty())
+				newUserApp.setAutoUploadFolder(proposedUserApp.getAutoUploadFolder());
+			
+			if (proposedUserApp.getMainCopyCacheSizeMB() != 0)
+				newUserApp.setMainCopyCacheSizeMB(proposedUserApp.getMainCopyCacheSizeMB());
 
-			String error = "GetUserApp didn't return a valid UserApp object";
-			meLogger.error(error);
-			throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
+			if (proposedUserApp.getThumbCacheSizeMB() != 0)
+				newUserApp.setThumbCacheSizeMB(proposedUserApp.getThumbCacheSizeMB());
 			
-			//meLogger.debug("RegisterUserApp has completed. UserId:" + userId);
+			if (!proposedUserApp.getMainCopyFolder().isEmpty())
+				newUserApp.setMainCopyFolder(proposedUserApp.getMainCopyFolder());
 			
-			//customResponse.setResponseCode(HttpStatus.OK.value());
-			//return newUserApp.getId();
+			accountDataHelper.CreateUserApp(userId, newUserApp);
+
+			meLogger.debug("CreateUserApp has completed. UserId:" + userId + " UserAppId:" + userAppId);
+			
+			customResponse.setResponseCode(HttpStatus.CREATED.value());
+			return userAppId;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process RegisterUserApp", wallaEx);
+			meLogger.error("Unexpected error when trying to process CreateUserApp", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return 0;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process RegisterUserApp",ex);
+			meLogger.error("Unexpected error when trying to process CreateUserApp",ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
 		}
 	}
 
+	public void UpdateUserApp(long userId, int appId, int platformId, UserApp updatedUserApp, CustomResponse customResponse)
+	{
+		try {
+			//Check user can access tag list
+			//HttpStatus.UNAUTHORIZED.value()
+			
+			meLogger.debug("UpdateUserApp() begins. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
+
+			UserApp userApp = accountDataHelper.GetUserApp(userId, updatedUserApp.getId());
+			if (userApp == null)
+			{
+				String error = "UpdateUserApp didn't return a valid UserApp object";
+				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.NOT_FOUND.value()); 
+			}
+			
+			if (platformId != userApp.getPlatformId())
+			{
+				String error = "Account update failed, platforms do not match.  PlatformId:" + platformId;
+				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+			}
+			
+			if (appId != userApp.getPlatformId())
+			{
+				String error = "Account update failed, apps do not match.  PlatformId:" + platformId;
+				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+			}
+			
+			//Ensure correct platformId and appId is used
+			updatedUserApp.setPlatformId(platformId);
+			updatedUserApp.setAppId(appId);
+			
+			if (!userApp.getMachineName().equalsIgnoreCase(updatedUserApp.getMachineName()))
+			{
+				//Create or find new userapp tag (system owned).
+				updatedUserApp.setTagId(tagService.CreateOrFindUserAppTag(userId, platformId, userApp.getMachineName()));
+				
+				//Create new auto upload category. 
+				updatedUserApp.setCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, userApp.getMachineName()));
+			}
+			
+			accountDataHelper.UpdateUserApp(userId, updatedUserApp);
+
+			meLogger.debug("RegisterUserApp has completed. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process UpdateUserApp", wallaEx);
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process UpdateUserApp",ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
 	
-	public UserApp GetUserApp(long userId, long userAppId, CustomResponse customResponse)
+	public UserApp GetUserApp(long userId, int appId, int platformId, long userAppId, CustomResponse customResponse)
 	{
 		try {
 			//Check user can access tag list
@@ -195,7 +306,30 @@ public class AccountService {
 			{
 				String error = "GetUserApp didn't return a valid UserApp object";
 				meLogger.error(error);
-				throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
+				throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.NOT_FOUND.value()); 
+			}
+			
+			//Check the userapp is still relevent for the platform.
+			if (userApp.getPlatformId() != platformId)
+			{
+				//Register new userapp, the platform has changed.  This could either be an upgrade, name change or copying config.
+				//Use existing app as a starting point.
+				meLogger.debug("Platforms don't match, create a new platform. UserId:" + userId + " PlatformId:" + platformId);
+				
+				UserApp newUserApp = new UserApp();
+				newUserApp.setAutoUpload(userApp.isAutoUpload());
+				newUserApp.setAutoUploadFolder(userApp.getAutoUploadFolder());
+				newUserApp.setThumbCacheSizeMB(userApp.getThumbCacheSizeMB());
+				
+				long newUserAppId = CreateUserApp(userId, appId, platformId, newUserApp, customResponse);
+				
+				userApp = accountDataHelper.GetUserApp(userId, newUserAppId);
+				if (userApp == null)
+				{
+					String error = "GetUserApp didn't return a valid UserApp object";
+					meLogger.error(error);
+					throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.NOT_FOUND.value()); 
+				}
 			}
 			
 			meLogger.debug("GetUserApp has completed. UserId:" + userId);
@@ -214,6 +348,32 @@ public class AccountService {
 			return null;
 		}
 	}
+	
+	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException
+	{
+		try {
+			meLogger.debug("CheckProfileNameIsUnique() is being run. Profile name:" + profileName);
+
+			return accountDataHelper.CheckProfileNameIsUnique(profileName);
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process CheckProfileNameIsUnique", wallaEx);
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetUserApp",ex);
+			throw ex;
+		}
+	}
+	
+	public int GetPlatformId(String OSType, String machineType, String majorVersion, String minorVersion, CustomResponse customResponse)
+	{
+		return 0;
+		
+		
+		
+	}
+	
 	
 	/*
 	public int DeleteTag(long userId, Tag tag, String tagName)
@@ -355,15 +515,29 @@ public class AccountService {
 		}
 	}
 	
-	
 	public void setAccountDataHelper(AccountDataHelperImpl accountDataHelper)
 	{
 		this.accountDataHelper = accountDataHelper;
 	}
 	
+	public void setTagService(TagService tagService)
+	{
+		this.tagService = tagService;
+	}
+	
 	public void setCachedData(CachedData cachedData)
 	{
 		this.cachedData = cachedData;
+	}
+	
+	public void setCategoryService(CategoryService categoryService)
+	{
+		this.categoryService = categoryService;
+	}
+	
+	public void setGalleryService(GalleryService galleryService)
+	{
+		this.galleryService = galleryService;
 	}
 	
 	public void setUtilityDataHelper(UtilityDataHelperImpl utilityDataHelper)
