@@ -49,7 +49,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
 				+ "[TotalImageCount],[LastUpdated],[RecordVersion],"
 				+ "[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],[ShowImageDesc],[ShowImageMeta],[UserId]) "
-				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,dbo.GetDateNoMS(),1,?,?,?,?,?,?)";
+				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,dbo.GetDateNoMS(),1,?,?,?,?,?,0,0,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -492,7 +492,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			String selectSql = "SELECT [GalleryId],[Name],[Description],[UrlComplex],[AccessType],"
 				+ "[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],[TotalImageCount],"
 				+ "[LastUpdated],[RecordVersion],[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],"
-				+ "[ShowImageDesc],[ShowImageMeta] FROM [dbo].[Gallery]"
+				+ "[ShowImageDesc],[ShowImageMeta],[SystemOwned] FROM [dbo].[Gallery]"
 				+ " WHERE [UserId] = ? AND [Name]= ?";
 			
 			ps = conn.prepareStatement(selectSql);
@@ -528,6 +528,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			gallery.setShowImageName(resultset.getBoolean(16));
 			gallery.setShowImageDesc(resultset.getBoolean(17));
 			gallery.setShowImageMeta(resultset.getBoolean(18));
+			gallery.setSystemOwned(resultset.getBoolean(19));
 			
 			GetGallerySubElements(userId, conn, gallery);
 			
@@ -673,7 +674,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount], COALESCE(GS.[SectionId],0) AS SectionId, GS.[ImageCount], " 
+			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount], "
+			+ "G.[SystemOwned], COALESCE(GS.[SectionId],0) AS SectionId, GS.[ImageCount], " 
 			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(C.[Name],'No Grouping') WHEN G.[GroupingType] = 2 THEN COALESCE(T.[Name],'No Grouping') ELSE '' END AS SectionName "
 			+ "FROM Gallery G "
 			+ "LEFT OUTER JOIN GallerySection GS ON G.[GalleryId] = GS.[GalleryId] "
@@ -705,16 +707,17 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 					newGalleryRef.setDesc(resultset.getString(3));
 					newGalleryRef.setUrlComplex(resultset.getString(4));
 					newGalleryRef.setCount(resultset.getInt(5));
+					newGalleryRef.setSystemOwned(resultset.getBoolean(6));
 					
-					long sectionId = resultset.getLong(6);
+					long sectionId = resultset.getLong(7);
 					if (sectionId > 0)
 					{
 						List<GalleryList.GalleryRef.SectionRef> sectionList = newGalleryRef.getSectionRef();
 						
 						GalleryList.GalleryRef.SectionRef section = new GalleryList.GalleryRef.SectionRef();
 						section.setId(sectionId);
-						section.setImageCount(resultset.getInt(7));
-						section.setName(resultset.getString(8));
+						section.setImageCount(resultset.getInt(8));
+						section.setName(resultset.getString(9));
 						sectionList.add(section);
 					}
 					
@@ -726,9 +729,9 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 					GalleryList.GalleryRef existingGalleryRef = galleryList.getGalleryRef().get(galleryList.getGalleryRef().size() - 1);
 
 					GalleryList.GalleryRef.SectionRef section = new GalleryList.GalleryRef.SectionRef();
-					section.setId(resultset.getLong(6));
-					section.setImageCount(resultset.getInt(7));
-					section.setName(resultset.getString(8));
+					section.setId(resultset.getLong(7));
+					section.setImageCount(resultset.getInt(8));
+					section.setName(resultset.getString(9));
 					existingGalleryRef.getSectionRef().add(section);
 				}
 
@@ -927,7 +930,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 
 			if (sectionId == -1)
 			{
-				selectSql = "SELECT G.[GalleryId],G.[Name],G.[Description],-1,G.[TotalImageCount],G.[LastUpdated],G.[RecordVersion] "
+				selectSql = "SELECT G.[GalleryId],G.[Name],G.[Description],-1,G.[TotalImageCount],G.[LastUpdated],G.[RecordVersion],G.[SystemOwned] "
 						+ "FROM [dbo].[Gallery] G WHERE G.[UserId] = ? AND G.[Name]= ?";
 				ps = conn.prepareStatement(selectSql);
 				ps.setLong(1, userId);
@@ -935,7 +938,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			}
 			else
 			{
-				selectSql = "SELECT G.[GalleryId],G.[Name],G.[Description],GS.[ImageCount],G.[TotalImageCount],G.[LastUpdated],G.[RecordVersion] "
+				selectSql = "SELECT G.[GalleryId],G.[Name],G.[Description],GS.[ImageCount],G.[TotalImageCount],G.[LastUpdated],G.[RecordVersion],G.[SystemOwned] "
 						+ "FROM [dbo].[Gallery] G INNER JOIN GallerySection GS ON G.[GalleryId] = GS.[GalleryId] "
 						+ "WHERE G.[UserId] = ? AND G.[Name]= ? AND GS.[SectionId] = ?";
 				ps = conn.prepareStatement(selectSql);
@@ -962,13 +965,14 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			galleryImageList.setSectionId(sectionId);
 			galleryImageList.setSectionImageCount(resultset.getInt(4));
 			galleryImageList.setTotalImageCount(resultset.getInt(5));
-
+			
 			GregorianCalendar oldGreg = new GregorianCalendar();
 			oldGreg.setTime(resultset.getTimestamp(6));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			
 			galleryImageList.setLastChanged(xmlOldGreg);
 			galleryImageList.setVersion(resultset.getInt(7));
+			galleryImageList.setSystemOwned(resultset.getBoolean(8));
 			
 			resultset.close();
 			return galleryImageList;

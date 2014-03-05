@@ -354,7 +354,49 @@ public class CategoryService {
 	
 	public long CreateOrFindUserAppCategory(long userId, int platformId, String machineName)
 	{
-		return 0;
+		try
+		{
+			Platform platform = cachedData.GetPlatform(platformId, "", "", 0, 0);
+			String categoryName = platform.getShortName() + " " + machineName;
+			if (categoryName.length() > 30)
+				categoryName = categoryName.substring(0,30);
+			
+			String sql = "SELECT [CategoryId] FROM [Category] WHERE [SystemOwned] = 1 AND [Name] = '" + categoryName + "' AND [UserId] = " + userId;
+			long categoryId = utilityDataHelper.GetLong(sql);
+			if (categoryId > 1)
+			{
+				return categoryId;
+			}
+			else
+			{
+				sql = "SELECT [CategoryId] FROM [Category] WHERE [ParentId] = 0 AND [UserId] = " + userId;
+				long parentCategoryId = utilityDataHelper.GetLong(sql);
+				
+				if (parentCategoryId < 1)
+				{
+					String error = "Couldn't retrieve a valid parent category";
+					throw new WallaException("CategoryService", "CreateOrFindUserAppCategory", error, 0); 
+				}
+				
+				Category newCategory = new Category();
+				categoryId = utilityDataHelper.GetNewId("CategoryId");
+				newCategory.setName(categoryName);
+				newCategory.setDesc("Auto generated tag for fotos uploaded from " + machineName + " - " + platform.getShortName());
+				newCategory.setSystemOwned(true);
+				newCategory.setParentId(parentCategoryId);
+				
+				categoryDataHelper.CreateCategory(userId, newCategory, categoryId);
+				return categoryId;
+			}
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error(wallaEx);
+			return 0;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return 0;
+		}
 	}
 	
 	//*************************************************************************************************************

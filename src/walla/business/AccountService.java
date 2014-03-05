@@ -29,7 +29,6 @@ public class AccountService {
 	private TagService tagService;
 	private CategoryService categoryService;
 	private GalleryService galleryService;
-	
 	private CachedData cachedData;
 	
 	private static final Logger meLogger = Logger.getLogger(AccountService.class);
@@ -40,13 +39,23 @@ public class AccountService {
 	
 	/* Account setup sequence and status
 
-		1 - initial details received
-		2 - email confirmed 
-		3 - billing confirmed
-		4 - billing issue
-		5 - live
-		6 - shutdown pending
-		7 - closed
+		Main
+		1 - initial details setup
+		2 - live (email and banking done)
+		3 - shutdown pending
+		4 - closed
+		
+		Email
+		0 - email not sent
+		1 - email sent 
+		2 - email not confirmed in timely manner
+		3 - email confirmed
+		
+		Banking
+		0 - not setup
+		1 - details received
+		2 - validated
+		3 - details need to be re-setup
 	 */
 	
 	//Create Account (Brief details) + Email.
@@ -164,12 +173,41 @@ public class AccountService {
 		}
 	}
 	
-	public int AckEmailConfirm(long userId, String queryString)
+	public int AckEmailConfirm(long userId, String requestValidationString)
 	{
-		//TODO Check query string validity
-		
-		//Decode 
-		return 0;
+		//TODO - expire email validation string
+		try
+		{
+			String sql = "SELECT [ValidationString] FROM [dbo].[User] WHERE [EmailStatus] = 1 AND [UserId] = " + userId;
+			String serverValidationString = utilityDataHelper.GetString(sql);
+			if (serverValidationString.equals(requestValidationString))
+			{
+				accountDataHelper.UpdateEmailStatus(userId, 3, "");;
+				//Check if banking is all done and if so, mark the account as Live.
+				/*
+				sql = "SELECT [BankingStatus] FROM [User] WHERE UserId = " + userId;
+				int bankingStatus = utilityDataHelper.GetInt(sql);
+				if (bankingStatus == 2)
+				{
+					accountDataHelper.UpdateMainStatus(userId, 2);
+				}
+				*/
+				return HttpStatus.OK.value();
+			}
+			else
+			{
+				return HttpStatus.BAD_REQUEST.value();
+			}
+		}
+		catch (WallaException wallaEx)
+		{
+			meLogger.error(wallaEx);
+			return HttpStatus.BAD_REQUEST.value();
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return HttpStatus.INTERNAL_SERVER_ERROR.value();
+		}
 	}
 
 	public long CreateUserApp(long userId, int appId, int platformId, UserApp proposedUserApp, CustomResponse customResponse)
@@ -183,7 +221,7 @@ public class AccountService {
 			UserApp newUserApp = new UserApp();
 			long userAppId = utilityDataHelper.GetNewId("UserAppId");
 			
-			App app = accountDataHelper.GetApp(appId, "");
+			App app = cachedData.GetApp(appId, "");
 			newUserApp.setId(userAppId);
 			newUserApp.setFetchSize(app.getDefaultFetchSize());
 			newUserApp.setThumbCacheSizeMB(app.getDefaultThumbCacheMB());
@@ -198,7 +236,7 @@ public class AccountService {
 			newUserApp.setCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, newUserApp.getMachineName()));
 			
 			//Get default gallery.
-			newUserApp.setGalleryId(galleryService.GetDefaultGallery(appId));
+			newUserApp.setGalleryId(galleryService.GetDefaultGallery(userId, appId));
 			
 			if (!proposedUserApp.getMachineName().isEmpty())
 				newUserApp.setMachineName(proposedUserApp.getMachineName());
@@ -366,135 +404,57 @@ public class AccountService {
 		}
 	}
 	
-	public int GetPlatformId(String OSType, String machineType, String majorVersion, String minorVersion, CustomResponse customResponse)
+	public int GetPlatformId(String OS, String machine, int major, int minor, CustomResponse customResponse)
 	{
-		return 0;
-		
-		
-		
-	}
-	
-	
-	/*
-	public int DeleteTag(long userId, Tag tag, String tagName)
-	{
-		try {
-			meLogger.debug("DeleteTag() begins. UserId:" + userId + " TagName:" + tagName);
-			
-			if (!tag.getName().equals(tagName))
-			{
-				String error = "Delete Tag failed, names don't match.";
-				meLogger.error(error);
-				throw new WallaException("TagService", "DeleteTag", error, HttpStatus.CONFLICT.value()); 
-			}
-			
-			tagDataHelper.DeleteTag(userId, tag.getId(), tag.getVersion(), tagName);
-			
-			meLogger.debug("DeleteTag() has completed. UserId:" + userId);
-			
-			//TODO decouple method
-			TagRippleDelete(userId, tag.getId());
-			
-			return HttpStatus.OK.value();
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process DeleteTag");
-			return wallaEx.getCustomStatus();
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces DeleteTag", ex);
-			return HttpStatus.INTERNAL_SERVER_ERROR.value();
-		}
-	}
-	
-
-	
-	public TagList GetTagListForUser(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
-	{
-		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetTagListForUser() begins. UserId:" + userId);
-			
-			TagList tagList = null;
-			Date lastUpdate = tagDataHelper.LastTagListUpdate(userId);
-			
-			//lastUpdate.setTime(1000 * (lastUpdate.getTime() / 1000));
-			
-			//Check if tag list changed
-			if (clientVersionTimestamp != null)
-			{
-				if (!lastUpdate.after(clientVersionTimestamp) || lastUpdate.equals(clientVersionTimestamp))
-				{
-					meLogger.debug("No tag list generated because server timestamp (" + lastUpdate.toString() + ") is not later than client timestamp (" + clientVersionTimestamp.toString() + ")");
-					customResponse.setResponseCode(HttpStatus.NOT_MODIFIED.value());
-					return null;
-				}
-			}
-			
-			//Get tag list for response.
-			tagList = tagDataHelper.GetUserTagList(userId);
-			
-			if (tagList != null)
-			{
-				GregorianCalendar gregory = new GregorianCalendar();
-				gregory.setTime(lastUpdate);
-				XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(gregory);
-				
-				tagList.setLastChanged(xmlOldGreg);
-			}
-			
+		try
+		{
+			Platform platform = cachedData.GetPlatform(0, OS, machine, major, minor);
 			customResponse.setResponseCode(HttpStatus.OK.value());
-			
-			meLogger.debug("GetTagListForUser has completed. UserId:" + userId);
-			return tagList;
+			return platform.getPlatformId();
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetTagListForUser");
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
+		catch (WallaException wallaEx)
+		{
+			meLogger.error(wallaEx);
+			customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
+			return 0;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetTagListForUser", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
+			return 0;
+		}
+	}
+	
+	public int VerifyApp(String wsKey, CustomResponse customResponse)
+	{
+		//Check for key existing in Walla	
+		//If not, then send back not found message
+		//If exists - but retired, then send back not acceptable message
+		//Else send back OK.
+		try
+		{
+			App app = cachedData.GetApp(0, wsKey);
+			if (app.getStatus() != 1)
+			{
+				customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
+				return 0;
+			}
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return app.getAppId();
+		}
+		catch (WallaException wallaEx)
+		{
+			meLogger.error(wallaEx);
+			customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+			return 0;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return 0;
 		}
 	}
 
-	public int AddRemoveTagImages(long userId, String tagName, ImageMoveList moveList, boolean add)
-	{
-		try {
-			meLogger.debug("AddRemoveTagImages() begins. UserId:" + userId + " TagName:" + tagName);
-			
-			Tag tag = tagDataHelper.GetTagMeta(userId, tagName);
-			if (tag == null)
-			{
-				String error = "AddRemoveTagImages didn't return a valid Tag object";
-				meLogger.error(error);
-				throw new WallaException("TagService", "AddRemoveTagImages", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
-			}
-			
-			tagDataHelper.AddRemoveTagImages(userId, tag.getId(), moveList, add);
-			
-			meLogger.debug("AddRemoveTagImages() has completed. UserId:" + userId);
-			
-			//TODO decouple method
-			TagRippleUpdate(userId, tag.getId());
-			
-			return HttpStatus.OK.value();
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process AddRemoveTagImages");
-			return wallaEx.getCustomStatus();
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces AddRemoveTagImages", ex);
-			return HttpStatus.INTERNAL_SERVER_ERROR.value();
-		}
-		
-	}
-	*/
 	
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
@@ -504,12 +464,14 @@ public class AccountService {
 	{
 		try
 		{
-
+			String validationString = UserTools.GetComplexString();
+			accountDataHelper.UpdateEmailStatus(userId, 1, validationString);
 			
+			//TODO actually send email.
 		}
-		//catch (WallaException wallaEx) {
-	//		meLogger.error("Unexpected error when trying to process SendEmailConfirmation");
-		//}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process SendEmailConfirmation");
+		}
 		catch (Exception ex) {
 			meLogger.error("Unexpected error when trying to proces SendEmailConfirmation", ex);
 		}

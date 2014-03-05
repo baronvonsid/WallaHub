@@ -243,8 +243,39 @@ public class TagService {
 	
 	public long CreateOrFindUserAppTag(long userId, int platformId, String machineName)
 	{
-		return 0;
-		
+		try
+		{
+			Platform platform = cachedData.GetPlatform(platformId, "", "", 0, 0);
+			String tagName = platform.getShortName() + " " + machineName;
+			if (tagName.length() > 30)
+				tagName = tagName.substring(0,30);
+			
+			String sql = "SELECT [TagId] FROM [Tag] WHERE [SystemOwned] = 1 AND [Name] = '" + tagName + "' AND [UserId] = " + userId;
+			long tagId = utilityDataHelper.GetLong(sql);
+			if (tagId > 1)
+			{
+				return tagId;
+			}
+			else
+			{
+				Tag newTag = new Tag();
+				long newTagId = utilityDataHelper.GetNewId("TagId");
+				newTag.setName(tagName);
+				newTag.setDesc("Auto generated tag for fotos uploaded from " + machineName + " - " + platform.getShortName());
+				newTag.setSystemOwned(true);
+				tagDataHelper.CreateTag(userId, newTag, newTagId);
+				
+				return newTagId;
+			}
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error(wallaEx);
+			return 0;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return 0;
+		}
 	}
 	
 	//*************************************************************************************************************

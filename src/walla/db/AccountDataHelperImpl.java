@@ -143,6 +143,141 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 	}
 	
+	public void UpdateMainStatus(long userId, int status) throws WallaException
+	{
+		/*
+		1 - initial details setup
+		2 - live (email and banking done)
+		3 - shutdown pending
+		4 - closed
+		 */
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			int returnCount = 0;		
+			
+			conn = dataSource.getConnection();
+			conn.setAutoCommit(false);
+
+			String updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [Status] = ? "
+					+ "WHERE UserId = ? AND [Status] = ?";
+			
+			if (status == 3)
+			{
+				updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [Status] = ?, [CloseDate] = GetDate() "
+						+ "WHERE UserId = ? AND [Status] = ?";
+			}
+			
+			ps = conn.prepareStatement(updateSql);
+			ps.setInt(1, status);
+			ps.setLong(2, userId);
+			ps.setInt(3, status-1);
+			
+			returnCount = ps.executeUpdate();
+			ps.close();
+			
+			if (returnCount != 1)
+			{
+				conn.rollback();
+				String error = "Update status didn't return a success count of 1.";
+				throw new WallaException("ImageDataHelperImpl", "UpdateMainStatus", error, 0); 
+			}
+			
+			conn.commit();
+		}
+		catch (SQLException sqlEx) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected SQLException in UpdateMainStatus", sqlEx);
+			throw new WallaException(sqlEx);
+		} 
+		catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected Exception in UpdateMainStatus", ex);
+			throw new WallaException(ex);
+		}
+		finally {
+	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+
+	public void UpdateEmailStatus(long userId, int status, String validationString) throws WallaException
+	{
+		/*
+		0 - email not sent
+		1 - email sent 
+		2 - email not confirmed in timely manner
+		3 - email confirmed
+		 */
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {
+			int returnCount = 0;		
+			
+			conn = dataSource.getConnection();
+			conn.setAutoCommit(false);
+
+			String updateSql = "";
+			
+			if (status == 1)
+			{
+				updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [EmailStatus] = ?, [ValidationString] = ? "
+						+ "WHERE UserId = ?";
+			}
+			else
+			{
+				updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [EmailStatus] = ?"
+						+ "WHERE UserId = ? AND [Status] = 1";
+			}
+			
+			ps = conn.prepareStatement(updateSql);
+			ps.setInt(1, status);
+			if (status == 1)
+			{
+				ps.setString(2, validationString);
+				ps.setLong(3, userId);
+			}
+			else
+			{
+				ps.setLong(2, userId);
+			}
+			
+			returnCount = ps.executeUpdate();
+			ps.close();
+			
+			if (returnCount != 1)
+			{
+				conn.rollback();
+				String error = "Update status didn't return a success count of 1.";
+				throw new WallaException("ImageDataHelperImpl", "UpdateEmailStatus", error, 0); 
+			}
+			
+			conn.commit();
+		}
+		catch (SQLException sqlEx) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected SQLException in UpdateEmailStatus", sqlEx);
+			throw new WallaException(sqlEx);
+		} 
+		catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected Exception in UpdateEmailStatus", ex);
+			throw new WallaException(ex);
+		}
+		finally {
+	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException
 	{
 		Connection conn = null;
@@ -439,55 +574,5 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 	}
 	
-	public App GetApp(int appId, String key) throws WallaException
-	{
-		Connection conn = null;
-		PreparedStatement ps = null;
-		ResultSet resultset = null;
-		
-		try {			
-			conn = dataSource.getConnection();
-
-			String selectSql = "SELECT [AppId],[Name],[WSKey],[MajorVersion],[MinorVersion],[Status],[DefaultFetchSize],[DefaultThumbCacheMB],[DefaultMainCopyCacheMB]"
-								+ " FROM [dbo].[App] WHERE [AppId] = ? OR [WSKey] = ?";
-							
-			ps = conn.prepareStatement(selectSql);
-			ps.setInt(1, appId);
-			ps.setString(2, key);
-
-			resultset = ps.executeQuery();
-			if (!resultset.next())
-			{
-				return null;
-			}
-			
-			App app = new App();
-			
-			app.setAppId(resultset.getInt(1));
-			app.setName(resultset.getString(2));
-			app.setWSKey(resultset.getString(3));
-			app.setMajorVersion(resultset.getInt(4));
-			app.setMinorVersion(resultset.getInt(5));
-			app.setStatus(resultset.getInt(6));
-			app.setDefaultFetchSize(resultset.getInt(7));
-			app.setDefaultThumbCacheMB(resultset.getInt(8));
-			app.setDefaultMainCopyCacheMB(resultset.getInt(9));
-
-			return app;
-		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetApp", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetApp", ex);
-			throw new WallaException(ex,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
-		finally {
-			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
-			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
-	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
-		}
-	}
 		
 }

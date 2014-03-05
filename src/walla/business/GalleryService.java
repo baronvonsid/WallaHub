@@ -53,7 +53,7 @@ public class GalleryService {
 				}
 				
 				long newGalleryId = utilityDataHelper.GetNewId("GalleryId");
-				galleryDataHelper.CreateGallery(userId, newGallery, newGalleryId, UserTools.GetComplexUrl());
+				galleryDataHelper.CreateGallery(userId, newGallery, newGalleryId, UserTools.GetComplexString());
 				
 				//TODO switch to messaging.
 				RefreshGalleryImages(userId, newGalleryId);
@@ -211,9 +211,31 @@ public class GalleryService {
 		}
 	}
 
-	public long GetDefaultGallery(long appId)
+	public long GetDefaultGallery(long userId, int appId)
 	{
-		return 0;
+		try
+		{
+			App app = cachedData.GetApp(appId, "");
+			
+			String sql = "SELECT [GalleryId] FROM [Gallery] WHERE [SystemOwned] = 1 "
+					+ "AND [GalleryType] = " + app.getDefaultGalleryType() + " AND [UserId] = " + userId;
+			
+			long galleryId = utilityDataHelper.GetLong(sql);
+			if (galleryId > 0)
+			{
+				return galleryId;
+			}
+			
+			return 0;
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error(wallaEx);
+			return 0;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return 0;
+		}
 	}
 	
 	//*************************************************************************************************************

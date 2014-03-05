@@ -33,7 +33,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 	
 	private static final Logger meLogger = Logger.getLogger(UtilityDataHelperImpl.class);
 	
-	public List<Platform> GetPlatformObjects() throws WallaException
+	public List<Platform> GetPlatformList() throws WallaException
 	{
 		Connection conn = null;
 		Statement sQuery = null;
@@ -42,7 +42,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [PlatformId],[ShortName],[OperatingSystem],[MachineType],[Supported] FROM [Platform]";
+			String selectSql = "SELECT [PlatformId],[ShortName],[OperatingSystem],[MachineType],[Supported],[MajorVersion],[MinorVersion] FROM [Platform]";
 			
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -57,6 +57,8 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				platform.setOperatingSystem(resultset.getString(3));
 				platform.setMachineType(resultset.getString(4));
 				platform.setSupported(resultset.getBoolean(5));
+				platform.setMajorVersion(resultset.getInt(6));
+				platform.setMinorVersion(resultset.getInt(7));
 				platformList.add(platform);
 			}
 			resultset.close();
@@ -86,6 +88,62 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		}
 	}
 
+	public List<App> GetAppList() throws WallaException
+	{
+		Connection conn = null;
+		Statement sQuery = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [AppId],[Name],[WSKey],[MajorVersion],[MinorVersion],[Status],[DefaultFetchSize],[DefaultThumbCacheMB],[DefaultMainCopyCacheMB] FROM [App]";
+			
+			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+			resultset = sQuery.executeQuery(selectSql);
+			
+			List<App> appList = new ArrayList<App>();
+			
+			while (resultset.next())
+			{
+				App app = new App();
+				app.setAppId(resultset.getInt(1));
+				app.setName(resultset.getString(2));
+				app.setWSKey(resultset.getString(3));
+				app.setMajorVersion(resultset.getInt(4));
+				app.setMinorVersion(resultset.getInt(5));
+				app.setStatus(resultset.getInt(6));
+				app.setDefaultFetchSize(resultset.getInt(7));
+				app.setDefaultThumbCacheMB(resultset.getInt(8));
+				app.setDefaultMainCopyCacheMB(resultset.getInt(9));
+				appList.add(app);
+			}
+			resultset.close();
+			
+			if (appList.size() < 1)
+			{
+				String error = "GetAppList didn't return any records";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetAppList", error, 0);
+			}
+			
+			return appList;
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetAppList", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetAppList", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public long GetNewId(String idType) throws WallaException
 	{
 		Connection conn = null;
@@ -130,6 +188,125 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		}
 	}
 
+	public int GetInt(String sql) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			ps = conn.prepareStatement(sql);
+
+			resultset = ps.executeQuery();
+			if (resultset.next())
+			{
+				return resultset.getInt(1);
+			}
+			else
+			{
+				String error = "Select statement didn't return any records, in GetInt.";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetInt", error, 0); 
+			}
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetInt", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetInt", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
+	public long GetLong(String sql) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			ps = conn.prepareStatement(sql);
+
+			resultset = ps.executeQuery();
+			if (resultset.next())
+			{
+				return resultset.getLong(1);
+			}
+			else
+			{
+				return -1;
+			}
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetLong", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetLong", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
+	
+	public String GetString(String sql) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			ps = conn.prepareStatement(sql);
+
+			resultset = ps.executeQuery();
+			if (resultset.next())
+			{
+				return resultset.getString(1);
+			}
+			else
+			{
+				String error = "Select statement didn't return any records, in GetInt.";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetString", error, 0); 
+			}
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetString", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetString", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public UtilityDataHelperImpl() {
 		meLogger.debug("UtilityDataHelperImpl object instantiated.");
 	}

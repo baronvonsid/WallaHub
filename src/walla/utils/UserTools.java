@@ -132,7 +132,7 @@ public final class UserTools {
 	    return rounded.doubleValue();
 	}
 	
-	public static String GetComplexUrl()
+	public static String GetComplexString()
 	{
 		UUID identifier = java.util.UUID.randomUUID();
 		return identifier.toString();

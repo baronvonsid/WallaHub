@@ -42,7 +42,7 @@ import walla.datatypes.auto.*;
 import walla.utils.*;
 
 	/*
- 	VerifyApp() GET /appcheck
+ 	VerifyApp() GET /appcheck?wsKey={wsKey}
  	SetPlatformForSession() /GET /platform?OS={OS}&machine={machine}&major={major}&minor={minor}
 
 	CreateAccount() PUT /{userName}
@@ -86,6 +86,13 @@ public class AccountController {
 			//httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
 			//return 0;
 	
+			//if (this.sessionState.isRobot())
+			//{
+			//	httpResponse.addHeader("Cache-Control", "no-cache");
+			//	httpResponse.setStatus(HttpStatus.FORBIDDEN.value());
+			//	return "";
+			//}
+			
 			long userId = this.sessionState.getUserId();
 			
 			int responseCode = accountService.CreateUpdateAccount(userId, account);
@@ -264,6 +271,12 @@ public class AccountController {
 			if (meLogger.isDebugEnabled()) {meLogger.debug("CheckProfileName request received, profileName: " + profileName);}
 			
 			//Check for session validated by the picture thingy.
+			//if (this.sessionState.isRobot())
+			//{
+			//	httpResponse.addHeader("Cache-Control", "no-cache");
+			//	httpResponse.setStatus(HttpStatus.FORBIDDEN.value());
+			//	return "";
+			//}
 			
 			String profileReturn = "USED";
 			if (accountService.CheckProfileNameIsUnique(profileName))
@@ -283,25 +296,37 @@ public class AccountController {
 			return null;
 		}
 	}
-		
-	public String VerifyApp()
+	
+	// POST /appcheck?wsKey={wsKey}
+	@RequestMapping(value = { "/appcheck?wsKey={wsKey}" }, method = { RequestMethod.POST }, 
+			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
+	public void VerifyApp(
+			@PathVariable("wsKey") String wsKey,
+			HttpServletResponse httpResponse)
 	{
-		//Pass in application key
-		
-		//Check for key existing in Walla
-		
-		//If not, then send back forbidden message
-		
-		//If exists - but retired, then send back status message, but do not allow further interactions
-		
-		//If exists, but due to be retired or new version available, send back information about upgrade, but continue
-		
-		//Else send back OK.
-		
-		return "";
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("VerifyApp request received");}
+			
+			//Check nothing.
+			
+			CustomResponse customResponse = new CustomResponse();
+			int appId = accountService.VerifyApp(wsKey, customResponse);
+			if (customResponse.getResponseCode() == HttpStatus.OK.value())
+			{
+				this.sessionState.setAppId(appId);
+			}
+
+			if (meLogger.isDebugEnabled()) {meLogger.debug("VerifyApp request completed");}
+			
+			httpResponse.addHeader("Cache-Control", "no-cache");
+			httpResponse.setStatus(customResponse.getResponseCode());
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in VerifyApp", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
 	}
-	
-	
 	
 	// POST /{userName}/platform?OS={OS}&machine={machine}&major={major}&minor={minor}
 	@RequestMapping(value = { "/{userName}/platform?OS={OS}&machine={machine}&major={major}&minor={minor}" }, method = { RequestMethod.POST }, 
@@ -309,8 +334,8 @@ public class AccountController {
 	public void SetPlatformForSession(
 			@PathVariable("OS") String OS,
 			@PathVariable("machine") String machine,
-			@PathVariable("major") String major,
-			@PathVariable("minor") String minor,
+			@PathVariable("major") int major,
+			@PathVariable("minor") int minor,
 			HttpServletResponse httpResponse)
 	{
 		try

@@ -11,6 +11,7 @@ public class App {
 	private int defaultFetchSize;
 	private int defaultThumbCacheMB;
 	private int defaultMainCopyCacheMB;
+	private int defaultGalleryType;
 	
 	public App() {
 	}
@@ -104,4 +105,15 @@ public class App {
 	{
 		return this.defaultMainCopyCacheMB;
 	}
+	
+	public void setDefaultGalleryType(int defaultGalleryType)
+	{
+		this.defaultGalleryType = defaultGalleryType;
+	}
+	
+	public int getDefaultGalleryType()
+	{
+		return this.defaultGalleryType;
+	}
+	
 }

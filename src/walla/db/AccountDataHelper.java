@@ -15,11 +15,11 @@ public interface AccountDataHelper {
 	public long CreateAccount(Account newAccount) throws WallaException;
 	public void UpdateAccount(long userId, Account acount) throws WallaException;
 	public Account GetAccount(long userId) throws WallaException;
+	public void UpdateMainStatus(long userId, int status) throws WallaException;
+	public void UpdateEmailStatus(long userId, int status, String validationString) throws WallaException;
+	
 	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException;
 	public UserApp GetUserApp(long userId, long userAppId) throws WallaException;
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException;
 	public void UpdateUserApp(long userId, UserApp userApp) throws WallaException;
-	public App GetApp(int appId, String key) throws WallaException;
-	
-
 }

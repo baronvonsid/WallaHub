@@ -891,8 +891,6 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
 		}
-		
-		
 	}
 	
 }

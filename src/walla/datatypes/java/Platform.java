@@ -7,6 +7,8 @@ public class Platform {
 	private String machineType;
 	private String shortName;
 	private boolean supported;
+	private int majorVersion;
+	private int minorVersion;
 	
 	public Platform() {
 		// TODO Auto-generated constructor stub
@@ -60,5 +62,25 @@ public class Platform {
 	public boolean getSupported()
 	{
 		return this.supported;
+	}
+	
+	public void setMajorVersion(int majorVersion)
+	{
+		this.majorVersion = majorVersion;
+	}
+	
+	public int getMajorVersion()
+	{
+		return this.majorVersion;
+	}
+	
+	public void setMinorVersion(int minorVersion)
+	{
+		this.minorVersion = minorVersion;
+	}
+	
+	public int getMinorVersion()
+	{
+		return this.minorVersion;
 	}
 }

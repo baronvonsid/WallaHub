@@ -14,6 +14,7 @@ public class CustomSessionState {
 	private long userAppId = 100001;
 	private int platformId = 100;
 	private int appId = 100;
+	private boolean isRobot = true;
 	
 	//private List<UploadStatusList.ImageUploadRef> uploadImageList;
 
@@ -84,6 +85,17 @@ public class CustomSessionState {
 	{
 		this.appId = appId;
 	}
+	
+	public boolean isRobot()
+	{
+		return this.isRobot;
+	}
+	
+	public void setRobot(boolean isRobot)
+	{
+		this.isRobot = isRobot;
+	}
+	
 	/*
     public List<UploadStatusList.ImageUploadRef> getImageUploadRefList() {
         if (uploadImageList == null) {
