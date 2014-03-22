@@ -7,13 +7,13 @@ import walla.datatypes.auto.*;
 
 public class CustomSessionState {
 
-	private String userName;
-	private long userId;
+	private String userName = "";
+	private long userId = -1;
 	private UploadStatusList uploadStatusList;
 	private boolean initUploadList = false;
-	private long userAppId = 100001;
-	private int platformId = 100;
-	private int appId = 100;
+	private long userAppId = -1;
+	private int platformId = -1;
+	private int appId = -1;
 	private boolean isRobot = true;
 	
 	//private List<UploadStatusList.ImageUploadRef> uploadImageList;

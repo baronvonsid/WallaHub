@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 
 public class WallaException extends Exception {
 
-	private int statusCode = 0;
+	private int statusCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 	
 	public WallaException() {
 		
@@ -30,7 +30,7 @@ public class WallaException extends Exception {
 	public WallaException(Exception ex, int customHttpStatus) {
 		super(ex);
 		
-		this.statusCode = customHttpStatus;
+		this.statusCode = (customHttpStatus == 0) ? HttpStatus.INTERNAL_SERVER_ERROR.value() : customHttpStatus;
 	}
 	
 	

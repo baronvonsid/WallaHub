@@ -18,7 +18,7 @@ public interface AccountDataHelper {
 	public void UpdateMainStatus(long userId, int status) throws WallaException;
 	public void UpdateEmailStatus(long userId, int status, String validationString) throws WallaException;
 	
-	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException;
+	public boolean ProfileNameIsUnique(String profileName) throws WallaException;
 	public UserApp GetUserApp(long userId, long userAppId) throws WallaException;
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException;
 	public void UpdateUserApp(long userId, UserApp userApp) throws WallaException;

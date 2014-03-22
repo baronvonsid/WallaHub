@@ -108,9 +108,9 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			ps = conn.prepareStatement(updateSql);
 			ps.setString(1, account.getDesc());
 			ps.setString(2, account.getEmail());
-			ps.setString(2, account.getPassword());
-			ps.setLong(3, userId);
-			ps.setInt(4, account.getVersion());
+			ps.setString(3, account.getPassword());
+			ps.setLong(4, userId);
+			ps.setInt(5, account.getVersion());
 			
 			//Execute update and check response.
 			returnCount = ps.executeUpdate();
@@ -231,7 +231,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			}
 			else
 			{
-				updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [EmailStatus] = ?"
+				updateSql = "UPDATE [User] SET [RecordVersion] = [RecordVersion] + 1, [EmailStatus] = ? "
 						+ "WHERE UserId = ? AND [Status] = 1";
 			}
 			
@@ -278,7 +278,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 	}
 	
-	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException
+	public boolean ProfileNameIsUnique(String profileName) throws WallaException
 	{
 		Connection conn = null;
 		Statement sQuery = null;
@@ -292,11 +292,11 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			resultset = sQuery.executeQuery(selectSql);
 			if (resultset.next())
 			{
-				return true;
+				return false;
 			}
 			else
 			{
-				return false;
+				return true;
 			}
 		}
 		catch (SQLException sqlEx) {
@@ -344,13 +344,20 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			account.setVersion(resultset.getInt(6));
 			
 			GregorianCalendar oldGreg = new GregorianCalendar();
-			oldGreg.setTime(resultset.getTimestamp(7));
-			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
-			account.setOpenDate(xmlOldGreg);
+			XMLGregorianCalendar xmlOldGreg = null;
+			if (resultset.getTimestamp(7) != null)
+			{
+				oldGreg.setTime(resultset.getTimestamp(7));
+				xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+				account.setOpenDate(xmlOldGreg);
+			}
 			
-			oldGreg.setTime(resultset.getTimestamp(8));
-			xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
-			account.setCloseDate(xmlOldGreg);
+			if (resultset.getTimestamp(8) != null)
+			{
+				oldGreg.setTime(resultset.getTimestamp(8));
+				xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+				account.setCloseDate(xmlOldGreg);
+			}
 			
 			account.setStorageGBLimit(resultset.getDouble(9));
 			account.setStorageGBCurrent(resultset.getDouble(10));
@@ -379,7 +386,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 	{
 		String sql = "INSERT INTO [dbo].[UserApp]([UserAppId],[PlatformId],[AppId],[MachineName],[LastUsed],[Blocked],[TagId],[CategoryId],[GalleryId],"
 					+ "[FetchSize],[ThumbCacheMB],[MainCopyCacheMB],[MainCopyFolder],[AutoUpload],[AutoUploadFolder],[RecordVersion],[UserId])"
-					+ "VALUES(?,?,?,?,GetDateNoMS(),0,?,?,?,?,?,?,?,?,?,1,?)";
+					+ "VALUES(?,?,?,?,dbo.GetDateNoMS(),0,?,?,?,?,?,?,?,?,?,1,?)";
 
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -396,7 +403,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			ps.setInt(3, userApp.getAppId());
 			ps.setString(4, userApp.getMachineName());
 			ps.setLong(5, userApp.getTagId());
-			ps.setLong(6, userApp.getCategoryId());
+			ps.setLong(6, userApp.getUserAppCategoryId());
 			ps.setLong(7, userApp.getGalleryId());
 			ps.setInt(8, userApp.getFetchSize());
 			ps.setInt(9, userApp.getThumbCacheSizeMB());
@@ -459,7 +466,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			ps = conn.prepareStatement(updateVersionSql);
 			ps.setString(1, userApp.getMachineName());
 			ps.setLong(2, userApp.getTagId());
-			ps.setLong(3, userApp.getCategoryId());
+			ps.setLong(3, userApp.getUserAppCategoryId());
 			ps.setLong(4, userApp.getGalleryId());
 			ps.setInt(5, userApp.getFetchSize());
 			ps.setInt(6, userApp.getThumbCacheSizeMB());
@@ -540,14 +547,14 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			userApp.setId(userAppId);
 			userApp.setPlatformId(resultset.getInt(1));
 			userApp.setMachineName(resultset.getString(2));
-			
+
 			GregorianCalendar oldGreg = new GregorianCalendar();
 			oldGreg.setTime(resultset.getTimestamp(3));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			userApp.setLastUsed(xmlOldGreg);
 			
 			userApp.setTagId(resultset.getLong(5));
-			userApp.setCategoryId(resultset.getLong(6));
+			userApp.setUserAppCategoryId(resultset.getLong(6));
 			userApp.setGalleryId(resultset.getLong(7));
 			userApp.setVersion(resultset.getInt(8));
 			userApp.setFetchSize(resultset.getInt(9));

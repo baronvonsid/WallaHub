@@ -89,7 +89,7 @@ public class AccountService {
 					return HttpStatus.BAD_REQUEST.value();
 				}
 				
-				if (!accountDataHelper.CheckProfileNameIsUnique(account.getProfileName()))
+				if (!accountDataHelper.ProfileNameIsUnique(account.getProfileName()))
 				{
 					String error = "Profile name is already in use.  " + account.getProfileName();
 					meLogger.error(error);
@@ -109,13 +109,13 @@ public class AccountService {
 			{
 				meLogger.debug("CreateUpdateAccount() begins.  Existing Account.  UserId: " + userId);
 				
-				//Create new account
-				if (userId != account.getId())
-				{
-					String error = "Account update failed, user ids don't match.  UserId: " + userId;
-					meLogger.error(error);
-					return HttpStatus.BAD_REQUEST.value();
-				}
+				//Check name is the same
+				//if (userId != account.getId())
+				//{
+				//	String error = "Account update failed, user ids don't match.  UserId: " + userId;
+				//	meLogger.error(error);
+				//	return HttpStatus.BAD_REQUEST.value();
+				//}
 				
 				if (!UserTools.CheckPasswordStrength(account.getPassword()))
 				{
@@ -153,7 +153,7 @@ public class AccountService {
 			{
 				String error = "GetAccount didn't return a valid Account object";
 				meLogger.error(error);
-				throw new WallaException("AccountService", "GetAccount", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
+				throw new WallaException("AccountService", "GetAccount", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 			
 			meLogger.debug("GetAccount has completed. UserId:" + userId);
@@ -173,15 +173,20 @@ public class AccountService {
 		}
 	}
 	
-	public int AckEmailConfirm(long userId, String requestValidationString)
+	public int AckEmailConfirm(String userName, String requestValidationString)
 	{
 		//TODO - expire email validation string
 		try
 		{
-			String sql = "SELECT [ValidationString] FROM [dbo].[User] WHERE [EmailStatus] = 1 AND [UserId] = " + userId;
+			String sql = "SELECT [UserId] FROM [dbo].[User] WHERE [ProfileName] = '" + userName + "'";
+			long userId = utilityDataHelper.GetLong(sql);
+			
+			sql = "SELECT [ValidationString] FROM [dbo].[User] WHERE [EmailStatus] = 1 AND [UserId] = " + userId;
 			String serverValidationString = utilityDataHelper.GetString(sql);
 			if (serverValidationString.equals(requestValidationString))
 			{
+
+				
 				accountDataHelper.UpdateEmailStatus(userId, 3, "");;
 				//Check if banking is all done and if so, mark the account as Live.
 				/*
@@ -196,6 +201,7 @@ public class AccountService {
 			}
 			else
 			{
+				meLogger.error("AckEmailConfirm - Validation string didn't match for account: " + userId);
 				return HttpStatus.BAD_REQUEST.value();
 			}
 		}
@@ -218,42 +224,52 @@ public class AccountService {
 			
 			meLogger.debug("CreateUserApp() begins. UserId:" + userId);
 			
+			if (proposedUserApp.getMachineName() == null || proposedUserApp.getMachineName().isEmpty())
+			{
+				String error = "CreateUserApp didn't receive a machine name, this is mandatory.";
+				throw new WallaException("AccountService", "CreateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+			}
+			
+			//TODO we ought to check for duplicates old boy.
+			
 			UserApp newUserApp = new UserApp();
 			long userAppId = utilityDataHelper.GetNewId("UserAppId");
-			
+
 			App app = cachedData.GetApp(appId, "");
 			newUserApp.setId(userAppId);
+			newUserApp.setAppId(appId);
+			newUserApp.setPlatformId(platformId);
 			newUserApp.setFetchSize(app.getDefaultFetchSize());
 			newUserApp.setThumbCacheSizeMB(app.getDefaultThumbCacheMB());
 			newUserApp.setMainCopyCacheSizeMB(app.getDefaultMainCopyCacheMB());
 			newUserApp.setAutoUpload(false);
 			newUserApp.setAutoUploadFolder("");
+			newUserApp.setMainCopyFolder("");
+			newUserApp.setMachineName(proposedUserApp.getMachineName());
+
 			
 			//Create or find new userapp tag (system owned).
 			newUserApp.setTagId(tagService.CreateOrFindUserAppTag(userId, platformId, proposedUserApp.getMachineName()));
 			
 			//Create new auto upload category. 
-			newUserApp.setCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, newUserApp.getMachineName()));
+			newUserApp.setUserAppCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, newUserApp.getMachineName()));
 			
 			//Get default gallery.
 			newUserApp.setGalleryId(galleryService.GetDefaultGallery(userId, appId));
 			
-			if (!proposedUserApp.getMachineName().isEmpty())
-				newUserApp.setMachineName(proposedUserApp.getMachineName());
-			
 			if (proposedUserApp.isAutoUpload())
 				newUserApp.setAutoUpload(true);
 			
-			if (!proposedUserApp.getAutoUploadFolder().isEmpty())
+			if (proposedUserApp.getAutoUploadFolder() != null && !proposedUserApp.getAutoUploadFolder().isEmpty())
 				newUserApp.setAutoUploadFolder(proposedUserApp.getAutoUploadFolder());
 			
-			if (proposedUserApp.getMainCopyCacheSizeMB() != 0)
+			if (proposedUserApp.getMainCopyCacheSizeMB() != null)
 				newUserApp.setMainCopyCacheSizeMB(proposedUserApp.getMainCopyCacheSizeMB());
 
-			if (proposedUserApp.getThumbCacheSizeMB() != 0)
+			if (proposedUserApp.getThumbCacheSizeMB() != null)
 				newUserApp.setThumbCacheSizeMB(proposedUserApp.getThumbCacheSizeMB());
 			
-			if (!proposedUserApp.getMainCopyFolder().isEmpty())
+			if (proposedUserApp.getMainCopyFolder() != null && !proposedUserApp.getMainCopyFolder().isEmpty())
 				newUserApp.setMainCopyFolder(proposedUserApp.getMainCopyFolder());
 			
 			accountDataHelper.CreateUserApp(userId, newUserApp);
@@ -296,9 +312,9 @@ public class AccountService {
 				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 			
-			if (appId != userApp.getPlatformId())
+			if (appId != updatedUserApp.getAppId())
 			{
-				String error = "Account update failed, apps do not match.  PlatformId:" + platformId;
+				String error = "Account update failed, apps do not match.  AppId:" + appId;
 				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 			
@@ -312,7 +328,7 @@ public class AccountService {
 				updatedUserApp.setTagId(tagService.CreateOrFindUserAppTag(userId, platformId, userApp.getMachineName()));
 				
 				//Create new auto upload category. 
-				updatedUserApp.setCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, userApp.getMachineName()));
+				updatedUserApp.setUserAppCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, userApp.getMachineName()));
 			}
 			
 			accountDataHelper.UpdateUserApp(userId, updatedUserApp);
@@ -392,7 +408,7 @@ public class AccountService {
 		try {
 			meLogger.debug("CheckProfileNameIsUnique() is being run. Profile name:" + profileName);
 
-			return accountDataHelper.CheckProfileNameIsUnique(profileName);
+			return accountDataHelper.ProfileNameIsUnique(profileName);
 		}
 		catch (WallaException wallaEx) {
 			meLogger.error("Unexpected error when trying to process CheckProfileNameIsUnique", wallaEx);
@@ -445,13 +461,33 @@ public class AccountService {
 		catch (WallaException wallaEx)
 		{
 			meLogger.error(wallaEx);
-			customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+			customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
 			return 0;
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
+		}
+	}
+
+	public long LogonCheck(String userName)
+	{
+		try
+		{
+			//TODO - Do it!
+			String sql = "SELECT [UserId] FROM [dbo].[User] WHERE [ProfileName] = '" + userName + "'";
+			long userId = utilityDataHelper.GetLong(sql);
+			return userId;
+		}
+		catch (WallaException wallaEx)
+		{
+			meLogger.error(wallaEx);
+			return -1;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return -1;
 		}
 	}
 
@@ -465,7 +501,7 @@ public class AccountService {
 		try
 		{
 			String validationString = UserTools.GetComplexString();
-			accountDataHelper.UpdateEmailStatus(userId, 1, validationString);
+			accountDataHelper.UpdateEmailStatus(userId, 1, validationString.substring(0,30));
 			
 			//TODO actually send email.
 		}

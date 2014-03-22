@@ -47,7 +47,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 	public void CreateCategory(long userId, Category newCategory, long categoryId) throws WallaException
 	{
 		String sql = "INSERT INTO [dbo].[Category] ([CategoryId],[ParentId],[Name],[Description],"
-					+ "[ImageCount],[LastUpdated],[RecordVersion],[Active],[SystemLocked],[UserId]) "
+					+ "[ImageCount],[LastUpdated],[RecordVersion],[Active],[SystemOwned],[UserId]) "
 					+ "VALUES (?,?,?,?,0,dbo.GetDateNoMS(),1,1,?,?)";
 		
 		Connection conn = null;

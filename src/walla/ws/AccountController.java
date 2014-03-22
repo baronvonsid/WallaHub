@@ -24,7 +24,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -42,20 +44,20 @@ import walla.datatypes.auto.*;
 import walla.utils.*;
 
 	/*
- 	VerifyApp() GET /appcheck?wsKey={wsKey}
- 	SetPlatformForSession() /GET /platform?OS={OS}&machine={machine}&major={major}&minor={minor}
 
-	CreateAccount() PUT /{userName}
+	CreateUpdateAccount() PUT /{userName}
 	GetAccount() GET /{userName}
 	AckEmailConfirm() GET /{userName}/{validationString}
-
-	GetUserApp() GET /{userName}/userapp/{userAppId}
-	CreateUpdateUserApp() PUT /{userName}/userapp
-
 	CheckProfileName() GET /profilename/{profileName}
+	
+	CreateUpdateUserApp() PUT /{userName}/userapp
+	GetUserAppMarkSession() GET /{userName}/userapp/{userAppId}
+	
+	VerifyApp() GET /appcheck?wsKey={wsKey}
+ 	SetPlatformForSession() /GET /platform?OS={OS}&machine={machine}&major={major}&minor={minor}
 
-	UpdateAccount() PUT /{userName}
-	Logon()
+	Not finished:
+	Logon() POST /{userName}/logon
 	ChangePassword()
 	*/
 
@@ -75,6 +77,7 @@ public class AccountController {
 	@RequestMapping(value = { "/{userName}" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void CreateUpdateAccount(
+			@PathVariable("userName") String userName,
 			@RequestBody Account account,
 			HttpServletResponse httpResponse)
 	{
@@ -82,23 +85,32 @@ public class AccountController {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateAccount request received.  Email: " + account.getEmail());}
 			
-			//TODO Check session state, must of been past the image validation thing.
-			//httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-			//return 0;
-	
-			//if (this.sessionState.isRobot())
-			//{
-			//	httpResponse.addHeader("Cache-Control", "no-cache");
-			//	httpResponse.setStatus(HttpStatus.FORBIDDEN.value());
-			//	return "";
-			//}
+
+			int responseCode = HttpStatus.UNAUTHORIZED.value();
 			
 			long userId = this.sessionState.getUserId();
-			
-			int responseCode = accountService.CreateUpdateAccount(userId, account);
+			if (userId > 0)
+			{
+				//Only edits allowed.
+				if (this.sessionState.getUserName().equalsIgnoreCase(userName) && this.sessionState.getUserName().equalsIgnoreCase(account.getProfileName()))
+				{
+					responseCode = accountService.CreateUpdateAccount(userId, account);
+				}
+				else
+				{
+					meLogger.error("CreateUpdateAccount request encountered a conflict between session userName: " 
+						+ this.sessionState.getUserName() + ", the url userName: " + userName + " and the account profileName: "
+						+ account.getProfileName());
+				}
+			}
+			else
+			{
+				responseCode = accountService.CreateUpdateAccount(0, account);
+			}
+
 			httpResponse.setStatus(responseCode);
 			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateAccount tag request completed, Email: " + account.getEmail() + " UserId: " + account.getId() + " Response code: " + responseCode);}
+			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateAccount tag request completed, Email: " + account.getEmail() + " UserId: " + userId + " Response code: " + responseCode);}
 		}
 		catch (Exception ex) {
 			meLogger.error("Received Exception in CreateUpdateAccount", ex);
@@ -106,8 +118,8 @@ public class AccountController {
 		}
 	}
 	
-	//  GET - /{userName}/
-	@RequestMapping(value="/{userName}/", method=RequestMethod.GET, 
+	//  GET - /{userName}
+	@RequestMapping(value="/{userName}", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody Account GetAccount(
 			@PathVariable("userName") String userName,
@@ -117,16 +129,15 @@ public class AccountController {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetAccount request received, User:" + userName.toString());}
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
+			if (this.sessionState.getUserId() < 0 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
 			{
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetAccount request not authorised, User:" + userName.toString());}
 				return null;
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			Account account = accountService.GetAccount(userId, customResponse);
+			Account account = accountService.GetAccount(this.sessionState.getUserId(), customResponse);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetAccount request completed, User:" + userName.toString());}
 			
@@ -141,8 +152,8 @@ public class AccountController {
 		}
 	}
 	
-	//  GET - /{userName}/{validationString}/
-	@RequestMapping(value="/{userName}/{validationString}/", method=RequestMethod.GET, 
+	//  GET - /{userName}/{validationString}
+	@RequestMapping(value="/{userName}/{validationString}", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void AckEmailConfirm(
 			@PathVariable("userName") String userName,
@@ -153,15 +164,7 @@ public class AccountController {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("AckEmailConfirm request received, User:" + userName.toString());}
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
-			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-				return;
-			}
-			
-			int response = accountService.AckEmailConfirm(userId, validationString);
+			int response = accountService.AckEmailConfirm(userName, validationString);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("AckEmailConfirm request completed, User:" + userName.toString());}
 			
@@ -179,7 +182,7 @@ public class AccountController {
 	//  PUT /{userName}/userapp
 	@RequestMapping(value = { "/{userName}/userapp" }, method = { RequestMethod.PUT }, produces=MediaType.TEXT_PLAIN_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
-	public String CreateUpdateUserApp(
+	public @ResponseBody String CreateUpdateUserApp(
 			@PathVariable("userName") String userName,
 			@RequestBody UserApp userApp,
 			HttpServletResponse httpResponse)
@@ -187,26 +190,32 @@ public class AccountController {
 		try
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateUserApp request received.  User:" + userName.toString());}
-			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
+
+			if (this.sessionState.getUserId() < 0 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
 			{
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateUserApp request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
 				return "";
 			}
 
+			if (this.sessionState.getPlatformId() < 1)
+			{
+				//Platform must be set for this session to continue.
+				httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateUserApp request failed because no platform was setup, User:" + userName.toString() + ", Response code: " + HttpStatus.BAD_REQUEST.value());}
+				return "";
+			}
+			
 			CustomResponse customResponse = new CustomResponse();
 			
 			long userAppId = userApp.getId();
 			if (userAppId == 0)
 			{
-				userAppId = accountService.CreateUserApp(userId, this.sessionState.getAppId(), this.sessionState.getPlatformId(), userApp, customResponse);
+				userAppId = accountService.CreateUserApp(this.sessionState.getUserId(), this.sessionState.getAppId(), this.sessionState.getPlatformId(), userApp, customResponse);
 			}
 			else
 			{
-				accountService.UpdateUserApp(userId, this.sessionState.getAppId(), this.sessionState.getPlatformId(), userApp, customResponse);
+				accountService.UpdateUserApp(this.sessionState.getUserId(), this.sessionState.getAppId(), this.sessionState.getPlatformId(), userApp, customResponse);
 			}
 			
 			httpResponse.setStatus(customResponse.getResponseCode());
@@ -218,14 +227,14 @@ public class AccountController {
 		catch (Exception ex) {
 			meLogger.error("Received Exception in CreateUpdateUserApp", ex);
 			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return "0";
+			return "<UserAppId>0</UserAppId>";
 		}
 	}
 	
 	// GET /{userName}/userapp/{userAppId}
 	@RequestMapping(value = { "/{userName}/userapp/{userAppId}" }, method = { RequestMethod.GET }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
-	public UserApp GetUserAppMarkSession(
+	public @ResponseBody UserApp GetUserAppMarkSession(
 			@PathVariable("userAppId") long userAppId,
 			@PathVariable("userName") String userName,
 			HttpServletResponse httpResponse)
@@ -234,16 +243,23 @@ public class AccountController {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUserAppMarkSession request received, User:" + userName.toString());}
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
+			if (this.sessionState.getUserId() < 0 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
 			{
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetUserAppMarkSession request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
+				return null;
+			}
+
+			if (this.sessionState.getPlatformId() < 1)
+			{
+				//Platform must be set for this session to continue.
+				httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetUserAppMarkSession request failed because no platform was setup, User:" + userName.toString() + ", Response code: " + HttpStatus.BAD_REQUEST.value());}
 				return null;
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			UserApp userApp = accountService.GetUserApp(userId, this.sessionState.getAppId(), this.sessionState.getPlatformId(), userAppId, customResponse);
+			UserApp userApp = accountService.GetUserApp(this.sessionState.getUserId(), this.sessionState.getAppId(), this.sessionState.getPlatformId(), userAppId, customResponse);
 			this.sessionState.setUserAppId(userApp.getId());
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUserAppMarkSession request completed, User:" + userName.toString());}
@@ -259,10 +275,10 @@ public class AccountController {
 		}
 	}
 
-	// GET /profilename/{profileName}/
-	@RequestMapping(value="/profilename/{profileName}/", method=RequestMethod.GET, 
+	// GET /profilename/{profileName}
+	@RequestMapping(value="/profilename/{profileName}", method=RequestMethod.GET, 
 	produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
-	public String CheckProfileName(
+	public @ResponseBody String CheckProfileName(
 		@PathVariable("profileName") String profileName,
 		HttpServletResponse httpResponse)
 	{	
@@ -298,7 +314,7 @@ public class AccountController {
 	}
 	
 	// POST /appcheck?wsKey={wsKey}
-	@RequestMapping(value = { "/appcheck?wsKey={wsKey}" }, method = { RequestMethod.POST }, 
+	@RequestMapping(value = { "/appcheck/{wsKey}" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void VerifyApp(
 			@PathVariable("wsKey") String wsKey,
@@ -329,13 +345,13 @@ public class AccountController {
 	}
 	
 	// POST /{userName}/platform?OS={OS}&machine={machine}&major={major}&minor={minor}
-	@RequestMapping(value = { "/{userName}/platform?OS={OS}&machine={machine}&major={major}&minor={minor}" }, method = { RequestMethod.POST }, 
+	@RequestMapping(value = { "/{userName}/platform" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void SetPlatformForSession(
-			@PathVariable("OS") String OS,
-			@PathVariable("machine") String machine,
-			@PathVariable("major") int major,
-			@PathVariable("minor") int minor,
+			@RequestParam("OS") String OS,
+			@RequestParam("machine") String machine,
+			@RequestParam("major") int major,
+			@RequestParam("minor") int minor,
 			HttpServletResponse httpResponse)
 	{
 		try
@@ -359,5 +375,54 @@ public class AccountController {
 		}
 	}
 	
+	//POST /{userName}/logon
+	@RequestMapping(value = { "/{userName}/logon" }, method = { RequestMethod.POST }, 
+			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
+	public void Logon(
+			@PathVariable("userName") String userName,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("Logon request received");}
+			
+			//Check nothing.
+			int response = HttpStatus.UNAUTHORIZED.value();
+			long userId = accountService.LogonCheck(userName);
+			if (userId > 0)
+			{
+				this.sessionState.setUserId(userId);
+				this.sessionState.setUserName(userName);
+				response = HttpStatus.OK.value();
+			}
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("Logon request completed");}
+			
+			httpResponse.addHeader("Cache-Control", "no-cache");
+			httpResponse.setStatus(response);
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in Logon", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
 	
+	//  GET - /{userName}
+	@RequestMapping(value="/session", method=RequestMethod.GET, 
+			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody String GetSession(HttpServletResponse httpResponse)
+	{	
+		try
+		{
+			httpResponse.setStatus(HttpStatus.OK.value());
+			return "UserName:" + this.sessionState.getUserName() + " UserID:" + this.sessionState.getUserId() +
+					" PlatformId:" + this.sessionState.getPlatformId() +
+					" AppId:" + this.sessionState.getAppId() +
+					" UserAppId:" + this.sessionState.getUserAppId();
+		}
+		catch (Exception ex) {
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return "";
+		}
+	}
 }

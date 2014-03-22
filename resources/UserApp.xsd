@@ -10,9 +10,10 @@ targetNamespace="http://www.example.org/UserApp"
       	  <element type="int" name="AppId" />
 	      <element type="int" name="PlatformId" />
 	      <element type="string" name="MachineName" />
-	      <element type="date" name="LastUsed" />
+	      <element type="dateTime" name="LastUsed" />
 	      <element type="long" name="TagId" default="0" />
-	      <element type="long" name="CategoryId" default="0" />
+	      <element type="long" name="UserAppCategoryId" default="0" />
+	      <element type="long" name="UserDefaultCategoryId" default="0" />
 	      <element type="long" name="GalleryId" default="0" />
 	      <element type="int" name="ThumbCacheSizeMB" />
 	      <element type="int" name="MainCopyCacheSizeMB" />
