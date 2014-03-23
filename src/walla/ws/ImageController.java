@@ -91,7 +91,7 @@ public class ImageController {
 	*/
 	
 	private final String destinationRoot = "C:\\temp\\WallaRepo\\";
-	private final long maxImageSize = 10000000;
+	private final long maxImageSize = 100000000;
 	private static final Logger meLogger = Logger.getLogger(ImageController.class);
 
 	//  PUT /{userName}/image/{imageId}/meta

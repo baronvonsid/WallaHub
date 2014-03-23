@@ -54,7 +54,7 @@ import walla.utils.*;
 	GetUserAppMarkSession() GET /{userName}/userapp/{userAppId}
 	
 	VerifyApp() GET /appcheck?wsKey={wsKey}
- 	SetPlatformForSession() /GET /platform?OS={OS}&machine={machine}&major={major}&minor={minor}
+ 	SetPlatformForSession() POST /{userName}/platform?OS={OS}&machine={machineType}&major={major}&minor={minor}
 
 	Not finished:
 	Logon() POST /{userName}/logon
@@ -152,12 +152,12 @@ public class AccountController {
 		}
 	}
 	
-	//  GET - /{userName}/{validationString}
+	//  GET - /{userName}/email?valid={validationString}
 	@RequestMapping(value="/{userName}/{validationString}", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void AckEmailConfirm(
 			@PathVariable("userName") String userName,
-			@PathVariable("validationString") String validationString,
+			@RequestParam("validationString") String validationString,
 			HttpServletResponse httpResponse)
 	{	
 		try
@@ -314,10 +314,11 @@ public class AccountController {
 	}
 	
 	// POST /appcheck?wsKey={wsKey}
-	@RequestMapping(value = { "/appcheck/{wsKey}" }, method = { RequestMethod.POST }, 
+	@RequestMapping(value = { "/{userName}/appcheck" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void VerifyApp(
-			@PathVariable("wsKey") String wsKey,
+			@PathVariable("userName") String userName,
+			@RequestParam("wsKey") String wsKey,
 			HttpServletResponse httpResponse)
 	{
 		try
@@ -344,12 +345,12 @@ public class AccountController {
 		}
 	}
 	
-	// POST /{userName}/platform?OS={OS}&machine={machine}&major={major}&minor={minor}
+	// POST /{userName}/platform?OS={OS}&machine={machineType}&major={major}&minor={minor}
 	@RequestMapping(value = { "/{userName}/platform" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void SetPlatformForSession(
 			@RequestParam("OS") String OS,
-			@RequestParam("machine") String machine,
+			@RequestParam("machineType") String machineType,
 			@RequestParam("major") int major,
 			@RequestParam("minor") int minor,
 			HttpServletResponse httpResponse)
@@ -361,7 +362,7 @@ public class AccountController {
 			//Check Session is valid - logged in.
 			
 			CustomResponse customResponse = new CustomResponse();
-			int platformId = accountService.GetPlatformId(OS, machine, major, minor, customResponse);
+			int platformId = accountService.GetPlatformId(OS, machineType, major, minor, customResponse);
 			this.sessionState.setPlatformId(platformId);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("SetPlatformForSession request completed");}

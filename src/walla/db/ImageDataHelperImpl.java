@@ -404,7 +404,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 				+ "[Width],[Height],[Size],[TakenDate],[TakenDateFile],[UploadDate],"
 				+ "[UdfChar1],[UdfChar2],[UdfChar3],[UdfText1],"
 				+ "[UdfNum1],[UdfNum2],[UdfNum3],[UdfDate1],[UdfDate2],[UdfDate3]) "
-				+ "VALUES (?,?,?,?,?,dbo.GetDateNoMS(),?,?,?,?,?,?,?,?,?,?)";
+				+ "VALUES (?,?,?,?,?,?,dbo.GetDateNoMS(),?,?,?,?,?,?,?,?,?,?)";
 		
 		Connection conn = null;
 		PreparedStatement psImage = null;
