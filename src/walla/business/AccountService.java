@@ -254,6 +254,9 @@ public class AccountService {
 			//Create new auto upload category. 
 			newUserApp.setUserAppCategoryId(categoryService.CreateOrFindUserAppCategory(userId, platformId, newUserApp.getMachineName()));
 			
+			//Default user category
+			newUserApp.setUserDefaultCategoryId(categoryService.FindDefaultUserCategory(userId));
+			
 			//Get default gallery.
 			newUserApp.setGalleryId(galleryService.GetDefaultGallery(userId, appId));
 			
@@ -263,11 +266,11 @@ public class AccountService {
 			if (proposedUserApp.getAutoUploadFolder() != null && !proposedUserApp.getAutoUploadFolder().isEmpty())
 				newUserApp.setAutoUploadFolder(proposedUserApp.getAutoUploadFolder());
 			
-			if (proposedUserApp.getMainCopyCacheSizeMB() != null)
-				newUserApp.setMainCopyCacheSizeMB(proposedUserApp.getMainCopyCacheSizeMB());
+			//if (proposedUserApp.getMainCopyCacheSizeMB() != null)
+			//	newUserApp.setMainCopyCacheSizeMB(proposedUserApp.getMainCopyCacheSizeMB());
 
-			if (proposedUserApp.getThumbCacheSizeMB() != null)
-				newUserApp.setThumbCacheSizeMB(proposedUserApp.getThumbCacheSizeMB());
+			//if (proposedUserApp.getThumbCacheSizeMB() != null)
+			//	newUserApp.setThumbCacheSizeMB(proposedUserApp.getThumbCacheSizeMB());
 			
 			if (proposedUserApp.getMainCopyFolder() != null && !proposedUserApp.getMainCopyFolder().isEmpty())
 				newUserApp.setMainCopyFolder(proposedUserApp.getMainCopyFolder());

@@ -57,6 +57,7 @@ import walla.utils.*;
  	SetPlatformForSession() POST /{userName}/platform?OS={OS}&machine={machineType}&major={major}&minor={minor}
 
 	Not finished:
+	//TODO add "find user app" method, in the case where the cache file is not present on the client
 	Logon() POST /{userName}/logon
 	ChangePassword()
 	*/
@@ -231,6 +232,9 @@ public class AccountController {
 		}
 	}
 	
+	
+	
+	
 	// GET /{userName}/userapp/{userAppId}
 	@RequestMapping(value = { "/{userName}/userapp/{userAppId}" }, method = { RequestMethod.GET }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
@@ -314,10 +318,9 @@ public class AccountController {
 	}
 	
 	// POST /appcheck?wsKey={wsKey}
-	@RequestMapping(value = { "/{userName}/appcheck" }, method = { RequestMethod.POST }, 
+	@RequestMapping(value = { "/appcheck" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void VerifyApp(
-			@PathVariable("userName") String userName,
 			@RequestParam("wsKey") String wsKey,
 			HttpServletResponse httpResponse)
 	{
@@ -376,11 +379,11 @@ public class AccountController {
 		}
 	}
 	
-	//POST /{userName}/logon
-	@RequestMapping(value = { "/{userName}/logon" }, method = { RequestMethod.POST }, 
+	//POST /logon?userName={userName}
+	@RequestMapping(value = { "/logon" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void Logon(
-			@PathVariable("userName") String userName,
+			@RequestParam("userName") String userName,
 			HttpServletResponse httpResponse)
 	{
 		try

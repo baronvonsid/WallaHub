@@ -47,7 +47,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 	{
 		String sql = "INSERT INTO [Tag] ([TagId],[Name],[Description],[SystemOwned], "
 				+ "[DefinitionId],[ImageCount],[LastUpdated],[RecordVersion],[UserId]) "
-				+ "VALUES (?,?,?,0,0,0,dbo.GetDateNoMS(),1,?)";
+				+ "VALUES (?,?,?,?,0,0,dbo.GetDateNoMS(),1,?)";
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -69,7 +69,8 @@ public class TagDataHelperImpl implements TagDataHelper {
 			ps.setLong(1, newTagId);
 			ps.setString(2, newTag.getName());
 			ps.setString(3, newTag.getDesc());
-			ps.setLong(4, userId);
+			ps.setBoolean(4, newTag.isSystemOwned());
+			ps.setLong(5, userId);
 			
 			//Execute insert statement.
 			returnCount = ps.executeUpdate();
@@ -323,7 +324,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 
 			String selectSql = "SELECT [TagId],[Name],[Description],[ImageCount],[LastUpdated],"
-					+ "[RecordVersion],[SystemOwned] FROM [dbo].[Tag] WHERE [UserId] = ? AND [Name]= ?";
+					+ "[RecordVersion],[SystemOwned] FROM [dbo].[TagView] WHERE [UserId] = ? AND [Name]= ?";
 			ps = conn.prepareStatement(selectSql);
 
 			ps.setLong(1, userId);
@@ -564,8 +565,8 @@ public class TagDataHelperImpl implements TagDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			String selectSql = "SELECT t.[TagId], t.[Name], t.[Description], [ImageCount], [SystemOwned] FROM "
-					+ "Tag t WHERE t.[UserId] = " + userId + " ORDER BY t.[Name]";
+			String selectSql = "SELECT [TagId], [Name], [Description], [ImageCount], [SystemOwned] FROM "
+					+ "TagView WHERE [UserId] = " + userId + " ORDER BY [Name]";
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
 

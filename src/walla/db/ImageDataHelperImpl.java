@@ -268,7 +268,6 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 
 			String selectSql = "SELECT I.[ImageId],[CategoryId],[Name],[Description],[OriginalFileName], "
 					+ "[Format],[RecordVersion],"
-					+ "[LocalPath], "
 					+ "[Width],[Height],[Size],[CameraMaker],[CameraModel],[Aperture],[ShutterSpeed],"
 					+ "[ISO],[Orientation],[TakenDate],[TakenDateFile],[TakenDateMeta],[UploadDate],"
 					+ "[UdfChar1],[UdfChar2],[UdfChar3], "
@@ -296,65 +295,64 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			image.setOriginalFileName(rsMeta.getString(5));
 			image.setFormat(rsMeta.getString(6));
 			image.setVersion(rsMeta.getInt(7));
-			image.setLocalPath(rsMeta.getString(8));
 			
-			image.setWidth(rsMeta.getInt(9));
-			image.setHeight(rsMeta.getInt(10));
-			image.setSize(rsMeta.getLong(11));
-			image.setCameraMaker(rsMeta.getString(12));
-			image.setCameraModel(rsMeta.getString(13));
-			image.setAperture(rsMeta.getString(14));
-			image.setShutterSpeed(rsMeta.getString(15));
-			image.setISO(rsMeta.getInt(16));
-			image.setOrientation(rsMeta.getInt(17));
+			image.setWidth(rsMeta.getInt(8));
+			image.setHeight(rsMeta.getInt(9));
+			image.setSize(rsMeta.getLong(10));
+			image.setCameraMaker(rsMeta.getString(11));
+			image.setCameraModel(rsMeta.getString(12));
+			image.setAperture(rsMeta.getString(13));
+			image.setShutterSpeed(rsMeta.getString(14));
+			image.setISO(rsMeta.getInt(15));
+			image.setOrientation(rsMeta.getInt(16));
 
+			if (rsMeta.getDate(17) != null)
+			{
+				oldGreg.setTime(rsMeta.getDate(17));
+				image.setTakenDate(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
+			}
 			if (rsMeta.getDate(18) != null)
 			{
 				oldGreg.setTime(rsMeta.getDate(18));
-				image.setTakenDate(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
+				image.setTakenDateFile(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
 			}
 			if (rsMeta.getDate(19) != null)
 			{
 				oldGreg.setTime(rsMeta.getDate(19));
-				image.setTakenDateFile(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
+				image.setTakenDateMeta(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
 			}
 			if (rsMeta.getDate(20) != null)
 			{
 				oldGreg.setTime(rsMeta.getDate(20));
-				image.setTakenDateMeta(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
-			}
-			if (rsMeta.getDate(21) != null)
-			{
-				oldGreg.setTime(rsMeta.getDate(21));
 				image.setUploadDate(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
 			}
 
-			image.setUdfChar1(rsMeta.getString(22));
-			image.setUdfChar2(rsMeta.getString(23));
-			image.setUdfChar3(rsMeta.getString(24));
+			image.setUdfChar1(rsMeta.getString(21));
+			image.setUdfChar2(rsMeta.getString(22));
+			image.setUdfChar3(rsMeta.getString(23));
 			
-			image.setUdfText1(rsMeta.getString(25));
-			image.setUdfNum1(rsMeta.getBigDecimal(26));
-			image.setUdfNum2(rsMeta.getBigDecimal(27));
-			image.setUdfNum3(rsMeta.getBigDecimal(28));
+			image.setUdfText1(rsMeta.getString(24));
+			image.setUdfNum1(rsMeta.getBigDecimal(25));
+			image.setUdfNum2(rsMeta.getBigDecimal(26));
+			image.setUdfNum3(rsMeta.getBigDecimal(27));
 			
+			if (rsMeta.getDate(28) != null)
+			{
+				oldGreg.setTime(rsMeta.getDate(28));
+				image.setUdfDate1(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
+			}
 			if (rsMeta.getDate(29) != null)
 			{
 				oldGreg.setTime(rsMeta.getDate(29));
-				image.setUdfDate1(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
+				image.setUdfDate2(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
 			}
 			if (rsMeta.getDate(30) != null)
 			{
 				oldGreg.setTime(rsMeta.getDate(30));
-				image.setUdfDate2(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
-			}
-			if (rsMeta.getDate(31) != null)
-			{
-				oldGreg.setTime(rsMeta.getDate(31));
 				image.setUdfDate3(DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg));
 			}
 
-			image.setStatus(rsMeta.getInt(32));
+			image.setStatus(rsMeta.getInt(31));
 			
 			psTag = conn.prepareStatement(selectTagSql);
 			psTag.setLong(1, imageId);
@@ -397,7 +395,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	public void CreateImage(long userId, ImageMeta newImage) throws WallaException 
 	{
 		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],"
-				+ "[RecordVersion],[LastUpdated],[LocalPath],[UserAppId],[UserId]) "
+				+ "[RecordVersion],[LastUpdated],[UserAppId],[UserId]) "
 				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?,?)";
 		
 		String sqlMeta = "INSERT INTO [ImageMeta] ([ImageId],"
@@ -427,9 +425,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psImage.setString(6, newImage.getFormat());
 			psImage.setInt(7, 1);
 			psImage.setInt(8, 0);
-			psImage.setString(9, newImage.getLocalPath());
-			psImage.setLong(10, newImage.getUserAppId());
-			psImage.setLong(11, userId);
+			psImage.setLong(9, newImage.getUserAppId());
+			psImage.setLong(10, userId);
 			
 			//Validate new record was successful.
 			if (1 != psImage.executeUpdate())

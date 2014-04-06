@@ -384,9 +384,9 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 	
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException
 	{
-		String sql = "INSERT INTO [dbo].[UserApp]([UserAppId],[PlatformId],[AppId],[MachineName],[LastUsed],[Blocked],[TagId],[CategoryId],[GalleryId],"
-					+ "[FetchSize],[ThumbCacheMB],[MainCopyCacheMB],[MainCopyFolder],[AutoUpload],[AutoUploadFolder],[RecordVersion],[UserId])"
-					+ "VALUES(?,?,?,?,dbo.GetDateNoMS(),0,?,?,?,?,?,?,?,?,?,1,?)";
+		String sql = "INSERT INTO [dbo].[UserApp]([UserAppId],[PlatformId],[AppId],[MachineName],[LastUsed],[Blocked],[TagId],[UserAppCategoryId],"
+					+ "[UserDefaultCategoryId],[GalleryId],[FetchSize],[ThumbCacheMB],[MainCopyCacheMB],[MainCopyFolder],[AutoUpload],[AutoUploadFolder],[RecordVersion],[UserId])"
+					+ "VALUES(?,?,?,?,dbo.GetDateNoMS(),0,?,?,?,?,?,?,?,?,?,?,1,?)";
 
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -404,14 +404,15 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			ps.setString(4, userApp.getMachineName());
 			ps.setLong(5, userApp.getTagId());
 			ps.setLong(6, userApp.getUserAppCategoryId());
-			ps.setLong(7, userApp.getGalleryId());
-			ps.setInt(8, userApp.getFetchSize());
-			ps.setInt(9, userApp.getThumbCacheSizeMB());
-			ps.setInt(10, userApp.getMainCopyCacheSizeMB());
-			ps.setString(11, userApp.getMainCopyFolder());
-			ps.setBoolean(12, userApp.isAutoUpload());
-			ps.setString(13, userApp.getAutoUploadFolder());
-			ps.setLong(14, userId);
+			ps.setLong(7, userApp.getUserDefaultCategoryId());
+			ps.setLong(8, userApp.getGalleryId());
+			ps.setInt(9, userApp.getFetchSize());
+			ps.setInt(10, userApp.getThumbCacheSizeMB());
+			ps.setInt(11, userApp.getMainCopyCacheSizeMB());
+			ps.setString(12, userApp.getMainCopyFolder());
+			ps.setBoolean(13, userApp.isAutoUpload());
+			ps.setString(14, userApp.getAutoUploadFolder());
+			ps.setLong(15, userId);
 			
 			//Execute insert statement.
 			returnCount = ps.executeUpdate();
@@ -459,7 +460,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			conn.setAutoCommit(false);
 			
 			updateVersionSql = "UPDATE [dbo].[UserApp] SET [MachineName] = ?,[LastUsed] = dbo.GetDateNoMS()"
-								+ ",[TagId] = ?,[CategoryId] = ?,[GalleryId] = ?,[FetchSize] = ?,[ThumbCacheMB] = ?"
+								+ ",[TagId] = ?,[UserAppCategoryId] = ?,[GalleryId] = ?,[FetchSize] = ?,[ThumbCacheMB] = ?"
 								+ ",[MainCopyCacheMB] = ?,[MainCopyFolder] = ?,[AutoUpload] = ?,[AutoUploadFolder] = ?,"
 								+ "[RecordVersion] = [RecordVersion] + 1 WHERE [UserId] = ? AND [UserAppId] = ? AND [RecordVersion] = ?";
 
@@ -520,8 +521,8 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [PlatformId],[MachineName],[LastUsed],[Blocked]"
-								+ ",[TagId],[CategoryId],[GalleryId],[RecordVersion],[FetchSize]"
+			String selectSql = "SELECT [AppId],[PlatformId],[MachineName],[LastUsed],[Blocked]"
+								+ ",[TagId],[UserAppCategoryId],[UserDefaultCategoryId],[GalleryId],[RecordVersion],[FetchSize]"
 								+ ",[ThumbCacheMB],[MainCopyCacheMB],[MainCopyFolder],[AutoUpload],[AutoUploadFolder]"
 								+ "FROM [dbo].[UserApp] WHERE [UserId] = ? AND [UserAppId] = ?";
 							
@@ -536,7 +537,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 				return null;
 			}
 			
-			if (resultset.getBoolean(4))
+			if (resultset.getBoolean(5))
 			{
 		    	String error = "User app has been explicitly blocked, request cannot continue.";
 				meLogger.error(error);
@@ -545,24 +546,26 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			
 			userApp = new UserApp();
 			userApp.setId(userAppId);
-			userApp.setPlatformId(resultset.getInt(1));
-			userApp.setMachineName(resultset.getString(2));
+			userApp.setAppId(resultset.getInt(1));
+			userApp.setPlatformId(resultset.getInt(2));
+			userApp.setMachineName(resultset.getString(3));
 
 			GregorianCalendar oldGreg = new GregorianCalendar();
-			oldGreg.setTime(resultset.getTimestamp(3));
+			oldGreg.setTime(resultset.getTimestamp(4));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			userApp.setLastUsed(xmlOldGreg);
 			
-			userApp.setTagId(resultset.getLong(5));
-			userApp.setUserAppCategoryId(resultset.getLong(6));
-			userApp.setGalleryId(resultset.getLong(7));
-			userApp.setVersion(resultset.getInt(8));
-			userApp.setFetchSize(resultset.getInt(9));
-			userApp.setThumbCacheSizeMB(resultset.getInt(10));
-			userApp.setMainCopyCacheSizeMB(resultset.getInt(11));
-			userApp.setMainCopyFolder(resultset.getString(12));
-			userApp.setAutoUpload(resultset.getBoolean(13));
-			userApp.setAutoUploadFolder(resultset.getString(14));
+			userApp.setTagId(resultset.getLong(6));
+			userApp.setUserAppCategoryId(resultset.getLong(7));
+			userApp.setUserDefaultCategoryId(resultset.getLong(8));
+			userApp.setGalleryId(resultset.getLong(9));
+			userApp.setVersion(resultset.getInt(10));
+			userApp.setFetchSize(resultset.getInt(11));
+			userApp.setThumbCacheSizeMB(resultset.getInt(12));
+			userApp.setMainCopyCacheSizeMB(resultset.getInt(13));
+			userApp.setMainCopyFolder(resultset.getString(14));
+			userApp.setAutoUpload(resultset.getBoolean(15));
+			userApp.setAutoUploadFolder(resultset.getString(16));
 
 			return userApp;
 		}

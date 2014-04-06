@@ -399,6 +399,32 @@ public class CategoryService {
 		}
 	}
 	
+	public long FindDefaultUserCategory(long userId)
+	{
+		try
+		{
+			String sql = "SELECT MIN([CategoryId]) from Category where ParentId = (SELECT [CategoryId] FROM [Category] WHERE [ParentId] = 0 AND [UserId] = " + userId + ")";
+			long categoryId = utilityDataHelper.GetLong(sql);
+			if (categoryId > 1)
+			{
+				return categoryId;
+			}
+			else
+			{
+				String error = "Couldn't retrieve a valid default category";
+				throw new WallaException("CategoryService", "FindDefaultUserCategory", error, 0); 
+			}
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error(wallaEx);
+			return 0;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return 0;
+		}
+	}
+	
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
 	//*************************************************************************************************************
