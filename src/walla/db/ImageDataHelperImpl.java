@@ -396,7 +396,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	{
 		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],"
 				+ "[RecordVersion],[LastUpdated],[UserAppId],[UserId]) "
-				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?,?)";
+				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?)";
 		
 		String sqlMeta = "INSERT INTO [ImageMeta] ([ImageId],"
 				+ "[Width],[Height],[Size],[TakenDate],[TakenDateFile],[UploadDate],"
@@ -585,10 +585,17 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psMeta.setInt(8, existingImage.getISO());
 			psMeta.setInt(9, existingImage.getOrientation());
 
-			if (existingImage.getTakenDate() != null)
-			{ psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDate().toGregorianCalendar().getTime().getTime())); }
-			else
-			{ psMeta.setNull(10, java.sql.Types.DATE); }
+			if (existingImage.getTakenDate() == null)
+			{
+				if (existingImage.getTakenDateMeta() != null)
+				{
+					psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));
+				}
+				else
+				{
+					psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateFile().toGregorianCalendar().getTime().getTime()));
+				}
+			}
 			
 			if (existingImage.getTakenDateFile() != null)
 			{ psMeta.setDate(11,new java.sql.Date(existingImage.getTakenDateFile().toGregorianCalendar().getTime().getTime())); }

@@ -91,7 +91,7 @@ public class ImageController {
 	*/
 	
 	private final String destinationRoot = "C:\\temp\\WallaRepo\\";
-	private final long maxImageSize = 100000000;
+	private final long maxImageSizeMB = 50;
 	private static final Logger meLogger = Logger.getLogger(ImageController.class);
 
 	//  PUT /{userName}/image/{imageId}/meta
@@ -299,7 +299,9 @@ public class ImageController {
 				return "";
 			}
 			
-			if (contentLength > maxImageSize || httpRequest.getContentLength() != contentLength)
+			long maxImageSizeBytes = maxImageSizeMB * 1024 * 1024;
+			
+			if (contentLength > maxImageSizeBytes || httpRequest.getContentLength() != contentLength)
 			{
 				httpResponse.setStatus(HttpStatus.REQUEST_ENTITY_TOO_LARGE.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("UploadImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.REQUEST_ENTITY_TOO_LARGE.value());}

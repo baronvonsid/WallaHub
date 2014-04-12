@@ -801,11 +801,13 @@ public class TagDataHelperImpl implements TagDataHelper {
 			String executeSql = "EXECUTE dbo.[ReGenDynamicTags] " + userId;
 
 			statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-			
-			resultset = statement.executeQuery(executeSql);
-
 			int size = 0;
-			try {
+			
+			try
+			{
+				resultset = statement.executeQuery(executeSql);
+
+				
 				resultset.last();
 			    size = resultset.getRow();
 			    resultset.beforeFirst();

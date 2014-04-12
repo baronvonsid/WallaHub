@@ -48,7 +48,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		String sql = "INSERT INTO [dbo].[Gallery] ([GalleryId],[Name],[Description],[UrlComplex],"
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
 				+ "[TotalImageCount],[LastUpdated],[RecordVersion],"
-				+ "[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],[ShowImageDesc],[ShowImageMeta],[UserId]) "
+				+ "[ShowGalleryName],[ShowGalleryDesc],[ShowImageName],[ShowImageDesc],[ShowImageMeta],"
+				+ "[GalleryType],[SystemOwned],[UserId]) "
 				+ "VALUES (?,?,?,?,?,?,?,?,?,?,-1,dbo.GetDateNoMS(),1,?,?,?,?,?,0,0,?)";
 		
 		Connection conn = null;

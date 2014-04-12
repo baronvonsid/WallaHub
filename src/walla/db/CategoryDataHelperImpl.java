@@ -259,7 +259,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [CategoryId],[ParentId],[Name],[Description],[LastUpdated],[RecordVersion],[SystemOwned] FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
+			String selectSql = "SELECT [CategoryId],[ParentId],[Name],[Description],[SystemOwned],[LastUpdated],[RecordVersion]FROM [dbo].[Category] WHERE [UserId] = ? AND [CategoryId]= ?";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, userId);
@@ -279,11 +279,11 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			category.setSystemOwned(resultset.getBoolean(5));
 
 			GregorianCalendar oldGreg = new GregorianCalendar();
-			oldGreg.setTime(resultset.getTimestamp(5));
+			oldGreg.setTime(resultset.getTimestamp(6));
 			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			
 			category.setLastChanged(xmlOldGreg);
-			category.setVersion(resultset.getInt(6));
+			category.setVersion(resultset.getInt(7));
 			
 			return category;
 		}
