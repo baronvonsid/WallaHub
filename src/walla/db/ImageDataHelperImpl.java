@@ -586,16 +586,9 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psMeta.setInt(9, existingImage.getOrientation());
 
 			if (existingImage.getTakenDate() == null)
-			{
-				if (existingImage.getTakenDateMeta() != null)
-				{
-					psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));
-				}
-				else
-				{
-					psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateFile().toGregorianCalendar().getTime().getTime()));
-				}
-			}
+			{ psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));}
+			else
+			{ psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));}
 			
 			if (existingImage.getTakenDateFile() != null)
 			{ psMeta.setDate(11,new java.sql.Date(existingImage.getTakenDateFile().toGregorianCalendar().getTime().getTime())); }

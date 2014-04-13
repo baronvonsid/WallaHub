@@ -222,8 +222,15 @@ public class AccountController {
 			httpResponse.setStatus(customResponse.getResponseCode());
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateUserApp request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
-			return "<UserAppId>" + userAppId + "</UserAppId>";
 			
+			if (customResponse.getResponseCode() == HttpStatus.OK.value() || customResponse.getResponseCode() == HttpStatus.CREATED.value())
+			{
+				return "<UserAppId>" + userAppId + "</UserAppId>";
+			}
+			else
+			{
+				return "<UserAppId>0</UserAppId>";
+			}
 		}
 		catch (Exception ex) {
 			meLogger.error("Received Exception in CreateUpdateUserApp", ex);

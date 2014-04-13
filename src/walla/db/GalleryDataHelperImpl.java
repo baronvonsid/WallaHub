@@ -636,7 +636,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				else
 				{
 					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(T.[Name],'No Grouping'),COALESCE(T.[Description],'') FROM [dbo].[GallerySection] GS "
-							+ "LEFT OUTER JOIN [Tag] T ON GS.[SectionId] = T.[TagId] "
+							+ "LEFT OUTER JOIN [TagView] T ON GS.[SectionId] = T.[TagId] "
 							+ "WHERE GS.[GalleryId]= ?";
 				}
 				
@@ -681,7 +681,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			+ "FROM Gallery G "
 			+ "LEFT OUTER JOIN GallerySection GS ON G.[GalleryId] = GS.[GalleryId] "
 			+ "LEFT OUTER JOIN Category C ON GS.[SectionId] = C.[CategoryId] "
-			+ "LEFT OUTER JOIN Tag T ON GS.[SectionId] = T.[TagId] "
+			+ "LEFT OUTER JOIN TagView T ON GS.[SectionId] = T.[TagId] "
 			+ "WHERE G.[UserId] = " + userId
 			+ " ORDER BY G.[Name], SectionName";
 
