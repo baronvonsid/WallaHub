@@ -315,7 +315,7 @@ public class CategoryService {
 		}
 	}
 	
-	public int MoveToNewCategory(long userId, long categoryId, ImageMoveList moveList)
+	public int MoveToNewCategory(long userId, long categoryId, ImageIdList moveList)
 	{
 		try
 		{

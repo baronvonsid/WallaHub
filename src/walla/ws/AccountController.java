@@ -356,7 +356,7 @@ public class AccountController {
 	}
 	
 	// POST /{userName}/platform?OS={OS}&machine={machineType}&major={major}&minor={minor}
-	@RequestMapping(value = { "/{userName}/platform" }, method = { RequestMethod.POST }, 
+	@RequestMapping(value = { "/platform" }, method = { RequestMethod.POST }, 
 			headers={"Accept-Charset=utf-8"}, produces=MediaType.APPLICATION_XML_VALUE )
 	public void SetPlatformForSession(
 			@RequestParam("OS") String OS,

@@ -20,6 +20,7 @@ public interface AccountDataHelper {
 	
 	public boolean ProfileNameIsUnique(String profileName) throws WallaException;
 	public UserApp GetUserApp(long userId, long userAppId) throws WallaException;
+	public long FindExistingUserApp(long userId, int appId, int platformId, String machineName) throws WallaException;
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException;
 	public void UpdateUserApp(long userId, UserApp userApp) throws WallaException;
 }

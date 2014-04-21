@@ -244,7 +244,7 @@ public class TagController {
 	@RequestMapping(value = { "/{userName}/tag/{tagName}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void AddImagesToTag(
-			@RequestBody ImageMoveList moveList,
+			@RequestBody ImageIdList moveList,
 			@PathVariable("tagName") String tagName,
 			@PathVariable("userName") String userName,
 			HttpServletResponse httpResponse)
@@ -276,7 +276,7 @@ public class TagController {
 	@RequestMapping(value = { "/{userName}/tag/{tagName}/images" }, method = { RequestMethod.DELETE }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void RemoveImagesFromTag(
-			@RequestBody ImageMoveList moveList,
+			@RequestBody ImageIdList moveList,
 			@PathVariable("tagName") String tagName,
 			@PathVariable("userName") String userName,
 			HttpServletResponse httpResponse)

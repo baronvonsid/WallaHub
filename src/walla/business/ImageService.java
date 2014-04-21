@@ -11,6 +11,7 @@ import walla.ws.*;
 import javax.imageio.ImageIO;
 import javax.sql.DataSource;
 import javax.xml.datatype.*;
+
 import org.apache.log4j.Logger;
 import org.springframework.http.HttpStatus;
 import java.util.ArrayList;
@@ -74,7 +75,7 @@ public class ImageService {
 				throw new WallaException("ImageService", "CreateUpdateImageMeta", "ImageId does not match Image Object data", HttpStatus.CONFLICT.value()); 
 			}
 			
-			if (imageMeta.getStatus().intValue() == 0)
+			if (imageMeta.getStatus().intValue() == 1)
 			{
 				//TODO change to queued process.
 				imageDataHelper.CreateImage(userId, imageMeta);
@@ -83,7 +84,7 @@ public class ImageService {
 				//TODO decouple.
 				SetupNewImage(userId, imageId);
 			}
-			else if (imageMeta.getStatus().intValue() == 3)
+			else if (imageMeta.getStatus().intValue() == 4)
 			{
 				imageDataHelper.UpdateImage(userId, imageMeta);
 				responseCode = HttpStatus.OK.value();
@@ -173,6 +174,55 @@ public class ImageService {
 		}
 	}
 
+	
+	public UploadStatusList GetUploadStatusList(long userId, ImageIdList imageIdToCheck, List<Long> filesReceived, CustomResponse customResponse) throws WallaException
+	{
+		try {
+			meLogger.debug("GetUploadStatusList begins. UserId:" + userId);
+
+			UploadStatusList currentUploadList = imageDataHelper.GetCurrentUploads(userId, imageIdToCheck);
+			
+			for (int i = 0; i < filesReceived.size(); i++)
+			{
+				boolean found = false;
+				for (int ii = 0; ii < currentUploadList.getImageUploadRef().size(); ii++)
+				{
+					if (filesReceived.get(i) == currentUploadList.getImageUploadRef().get(ii).getImageId())
+					{
+						found = true;
+						
+					}
+				}
+				
+				if (!found)
+				{
+					UploadStatusList.ImageUploadRef imageRef = new UploadStatusList.ImageUploadRef();
+					imageRef.setImageId(filesReceived.get(i));
+					imageRef.setStatus(1);
+
+					currentUploadList.getImageUploadRef().add(imageRef);
+				}
+			}
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+					
+			meLogger.debug("GetUploadStatusList has completed. UserId:" + userId);
+			
+			return currentUploadList;
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process GetUploadStatusList");
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to proces GetUploadStatusList", ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+	
+	/*
 	public void UpdateUploadStatusList(long userId, UploadStatusList existingUploadList)
 	{
 		try {
@@ -248,14 +298,7 @@ public class ImageService {
 					}
 				}
 				
-				/*
-				if (!found && existingImageStatus.getImageStatus() != 4)
-				{
-					// Have been processed, so remove it.
-					toRemove[count] = existingImageStatus;
-					count++;
-				}
-				*/
+
 			}
 
 			//Apply removes.
@@ -305,6 +348,7 @@ public class ImageService {
 			meLogger.error("Unexpected error when trying to proces UpdateUploadStatusList", ex);
 		}
 	}
+	*/
 	
 	public long GetImageId(long userId)
 	{
@@ -693,7 +737,7 @@ public class ImageService {
 			meLogger.debug("SetupNewImage begins. UserId:" + userId + " ImageId:" + imageId);
 			
 			//Update image to being processed.
-			imageDataHelper.UpdateImageStatus(userId, imageId, 2, "");
+			imageDataHelper.UpdateImageStatus(userId, imageId, 3, false, "");
 			
 			File uploadedFile = Paths.get(destinationRoot, "Que", String.valueOf(imageId) + "." + Long.toString(userId)).toFile();
 			if (!uploadedFile.exists())
@@ -709,7 +753,7 @@ public class ImageService {
 				throw new WallaException("ImageService", "SetupNewImage", error, 0); 
 			}
 			
-			if (imageMeta.getStatus().intValue() != 2)
+			if (imageMeta.getStatus().intValue() != 3)
 			{
 				String error = "SetupNewImage didn't return an Image object with the correct status. UserId:" + userId + " ImageId:" + imageId + " Status:" + imageMeta.getStatus();
 				throw new WallaException("ImageService", "SetupNewImage", error, 0);
@@ -773,7 +817,7 @@ public class ImageService {
 			ImageUtilityHelper.DeleteImage(uploadedFile.getPath());
 			
 			
-			imageDataHelper.UpdateImageStatus(userId, imageId, 3, "");
+			imageDataHelper.UpdateImageStatus(userId, imageId, 4, false, "");
 			
 			//For Each Tag associated, call TagRippleUpdates decoupled
 			if (imageMeta.getTags() != null)
@@ -800,7 +844,7 @@ public class ImageService {
 			meLogger.error("Unexpected error when trying to process SetupNewImage",ex);
 			
 			try {MoveImageToErrorFolder(userId, imageId);} catch (Exception logOrIgnore) {}
-			try {imageDataHelper.UpdateImageStatus(userId, imageId, 4, ex.getMessage());} catch (Exception logOrIgnore) {}
+			try {imageDataHelper.UpdateImageStatus(userId, imageId, -1, true, ex.getMessage());} catch (Exception logOrIgnore) {}
 			
 		}
 	}

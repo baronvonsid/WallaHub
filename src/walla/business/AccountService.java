@@ -219,9 +219,6 @@ public class AccountService {
 	public long CreateUserApp(long userId, int appId, int platformId, UserApp proposedUserApp, CustomResponse customResponse)
 	{
 		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
 			meLogger.debug("CreateUserApp() begins. UserId:" + userId);
 			
 			if (proposedUserApp.getMachineName() == null || proposedUserApp.getMachineName().isEmpty())
@@ -230,10 +227,15 @@ public class AccountService {
 				throw new WallaException("AccountService", "CreateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 			
-			//TODO we ought to check for duplicates old boy.
+			long userAppId = accountDataHelper.FindExistingUserApp(userId, appId, platformId, proposedUserApp.getMachineName());
+			if (userAppId > 0)
+			{
+				customResponse.setResponseCode(HttpStatus.CREATED.value());
+				return userAppId;
+			}
 			
 			UserApp newUserApp = new UserApp();
-			long userAppId = utilityDataHelper.GetNewId("UserAppId");
+			userAppId = utilityDataHelper.GetNewId("UserAppId");
 
 			App app = cachedData.GetApp(appId, "");
 			newUserApp.setId(userAppId);
@@ -247,7 +249,6 @@ public class AccountService {
 			newUserApp.setMainCopyFolder("");
 			newUserApp.setMachineName(proposedUserApp.getMachineName());
 
-			
 			//Create or find new userapp tag (system owned).
 			newUserApp.setTagId(tagService.CreateOrFindUserAppTag(userId, platformId, proposedUserApp.getMachineName()));
 			
@@ -265,12 +266,6 @@ public class AccountService {
 			
 			if (proposedUserApp.getAutoUploadFolder() != null && !proposedUserApp.getAutoUploadFolder().isEmpty())
 				newUserApp.setAutoUploadFolder(proposedUserApp.getAutoUploadFolder());
-			
-			//if (proposedUserApp.getMainCopyCacheSizeMB() != null)
-			//	newUserApp.setMainCopyCacheSizeMB(proposedUserApp.getMainCopyCacheSizeMB());
-
-			//if (proposedUserApp.getThumbCacheSizeMB() != null)
-			//	newUserApp.setThumbCacheSizeMB(proposedUserApp.getThumbCacheSizeMB());
 			
 			if (proposedUserApp.getMainCopyFolder() != null && !proposedUserApp.getMainCopyFolder().isEmpty())
 				newUserApp.setMainCopyFolder(proposedUserApp.getMainCopyFolder());
@@ -336,7 +331,7 @@ public class AccountService {
 			
 			accountDataHelper.UpdateUserApp(userId, updatedUserApp);
 
-			meLogger.debug("RegisterUserApp has completed. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
+			meLogger.debug("UpdateUserApp has completed. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 		}
@@ -377,6 +372,8 @@ public class AccountService {
 				newUserApp.setAutoUpload(userApp.isAutoUpload());
 				newUserApp.setAutoUploadFolder(userApp.getAutoUploadFolder());
 				newUserApp.setThumbCacheSizeMB(userApp.getThumbCacheSizeMB());
+				newUserApp.setMainCopyFolder(userApp.getMainCopyFolder());
+				newUserApp.setMainCopyCacheSizeMB(userApp.getMainCopyCacheSizeMB());
 				
 				long newUserAppId = CreateUserApp(userId, appId, platformId, newUserApp, customResponse);
 				

@@ -41,11 +41,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		this.dataSource = dataSource;
 	}
 
-	/*
-	 * Brings back a dataset which contains images currently in the cache + any recent errors
-	 * or those being processed.  This is call used in the calling ImageService method.
-	 */
-	public UploadStatusList GetCurrentUploads(long userId, long[] imageIdToCheck) throws WallaException
+
+	public UploadStatusList GetCurrentUploads(long userId, ImageIdList imageIdToCheck) throws WallaException
 	{
 		Connection conn = null;
 		PreparedStatement ps = null;
@@ -57,20 +54,20 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			String addImages = "";
 			boolean hasIds = false;
 			
-			for (int i = 0; i < imageIdToCheck.length; i++)
+			for (int i = 0; i < imageIdToCheck.getImageRef().size(); i++)
 			{
-				if (imageIdToCheck[i] > 0)
-				{
+				//if (imageIdToCheck.getImageRef().get(i) > 0)
+				//{
 					if (i==0)
 					{
-						addImages = Long.toString(imageIdToCheck[i]);
+						addImages = Long.toString(imageIdToCheck.getImageRef().get(i));
 					}
 					else
 					{
-						addImages = addImages + "," + imageIdToCheck[i];
+						addImages = addImages + "," + Long.toString(imageIdToCheck.getImageRef().get(i));
 					}
 					hasIds = true;
-				}
+				//}
 			}
 			
 			if (hasIds)
@@ -78,8 +75,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 				addImages = "OR [ImageId] IN (" + addImages + ")";
 			}
 			
-			String selectSql = "SELECT [ImageId], [Status], [Name], [LastUpdated] FROM [Image] WHERE [UserId] = ? AND "
-					+ "([Status] IN (1,2) OR ([Status] = 4 AND [LastUpdated] > DATEADD(d,-2,dbo.GetDateNoMS())) " + addImages + ")";
+			String selectSql = "SELECT [ImageId], [Status], [Name], [LastUpdated], [Error], [ErrorMessage] FROM [Image] WHERE [UserId] = ? AND "
+					+ "(([Status] IN (1,2,3) AND [LastUpdated] > DATEADD(d,-30,dbo.GetDateNoMS())) " + addImages + ")";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, userId);
@@ -93,12 +90,15 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			{
 				UploadStatusList.ImageUploadRef imageRef = new UploadStatusList.ImageUploadRef();
 				imageRef.setImageId(resultset.getLong(1));
-				imageRef.setImageStatus(resultset.getInt(2));
+				imageRef.setStatus(resultset.getInt(2));
 				imageRef.setName(resultset.getString(3));
 				
 				oldGreg.setTime(resultset.getTimestamp(4));
 				XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 				imageRef.setLastUpdated(xmlOldGreg);
+				
+				imageRef.setError(resultset.getBoolean(5));
+				imageRef.setErrorMessage(resultset.getString(6));
 				
 				currentUploads.getImageUploadRef().add(imageRef);
 			}
@@ -212,7 +212,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 				return null;
 			
 			conn = dataSource.getConnection();
-			String selectSql = "SELECT ImageId FROM [Image] WHERE [UserId] = " + userId + " AND [Status] = 3 AND [CategoryId] IN (";
+			String selectSql = "SELECT ImageId FROM [Image] WHERE [UserId] = " + userId + " AND [Status] = 4 AND [CategoryId] IN (";
 			for (int i = 0; i < categoryIds.length; i++)
 			{
 				selectSql = selectSql + ((i == 0) ? categoryIds[i] : "," + categoryIds[i]);
@@ -423,7 +423,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psImage.setString(4, newImage.getDesc());
 			psImage.setString(5, newImage.getOriginalFileName());
 			psImage.setString(6, newImage.getFormat());
-			psImage.setInt(7, 1);
+			psImage.setInt(7, 2);
 			psImage.setInt(8, 0);
 			psImage.setLong(9, newImage.getUserAppId());
 			psImage.setLong(10, userId);
@@ -834,13 +834,13 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		}
 	}
 
-	public void UpdateImageStatus(long userId, long imageId, int status, String errorMessage) throws WallaException
+	public void UpdateImageStatus(long userId, long imageId, int status, boolean error, String errorMessage) throws WallaException
 	{
-		//if status == 2, check status == 1
-		//if status == 3, check status == 2
+		//check new status is previous status + 1.
 		
 		Connection conn = null;
 		PreparedStatement ps = null;
+		String updateSql = "";
 		
 		try {
 			int returnCount = 0;		
@@ -848,25 +848,39 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 
-			String updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
-					+ "[ErrorMessage] = ?, [Status] = ? "
-					+ "WHERE ImageId = ? AND [UserId] = ? AND [Status] = ?";
-			
-			ps = conn.prepareStatement(updateSql);
-			ps.setString(1, errorMessage);
-			ps.setInt(2, status);
-			ps.setLong(3, imageId);
-			ps.setLong(4, userId);
-			ps.setInt(5, (status == 4) ? 2 : status-1);
-			
+			if (error)
+			{
+				updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
+						+ "[ErrorMessage] = ?, [Error] = 1 "
+						+ "WHERE ImageId = ? AND [UserId] = ? AND [Status] = ?";
+				
+				ps = conn.prepareStatement(updateSql);
+				ps.setString(1, errorMessage);
+				ps.setLong(2, imageId);
+				ps.setLong(3, userId);
+				ps.setInt(4, status-1);
+			}
+			else
+			{
+				updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
+						+ "[Status] = ? "
+						+ "WHERE ImageId = ? AND [UserId] = ? AND [Status] = ?";
+				
+				ps = conn.prepareStatement(updateSql);
+				ps.setInt(1, status);
+				ps.setLong(2, imageId);
+				ps.setLong(3, userId);
+				ps.setInt(4, status-1);
+			}
+				
 			returnCount = ps.executeUpdate();
 			ps.close();
 			
 			if (returnCount != 1)
 			{
 				conn.rollback();
-				String error = "Update status didn't return a success count of 1.";
-				throw new WallaException("ImageDataHelperImpl", "UpdateImageStatus", error, 0); 
+				String message = "Update status didn't return a success count of 1.";
+				throw new WallaException("ImageDataHelperImpl", "UpdateImageStatus", message, 0); 
 			}
 			
 			conn.commit();

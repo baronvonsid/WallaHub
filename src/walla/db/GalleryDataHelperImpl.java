@@ -827,7 +827,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId "
 						+ " INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
-						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 AND gi.[SectionId] = ?) AS RR"
+						+ " WHERE gi.[GalleryId] = ? AND i.Status = 4 AND gi.[SectionId] = ?) AS RR"
 						+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 				
 				ps = conn.prepareStatement(selectSql);
@@ -844,7 +844,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 						+ " i.[RecordVersion], im.[UploadDate],im.[TakenDate],"
 						+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 						+ " FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
-						+ " WHERE gi.[GalleryId] = ? AND i.Status = 3 ) AS RR"
+						+ " WHERE gi.[GalleryId] = ? AND i.Status = 4 ) AS RR"
 						+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 				
 				ps = conn.prepareStatement(selectSql);

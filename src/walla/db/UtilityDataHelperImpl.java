@@ -97,7 +97,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [AppId],[Name],[WSKey],[MajorVersion],[MinorVersion],[Status],[DefaultFetchSize],[DefaultThumbCacheMB],[DefaultMainCopyCacheMB] FROM [App]";
+			String selectSql = "SELECT [AppId],[Name],[WSKey],[MajorVersion],[MinorVersion],[Status],[DefaultFetchSize],[DefaultThumbCacheMB],[DefaultMainCopyCacheMB],[DefaultGalleryType] FROM [App]";
 			
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -116,6 +116,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				app.setDefaultFetchSize(resultset.getInt(7));
 				app.setDefaultThumbCacheMB(resultset.getInt(8));
 				app.setDefaultMainCopyCacheMB(resultset.getInt(9));
+				app.setDefaultGalleryType(resultset.getInt(10));
 				appList.add(app);
 			}
 			resultset.close();

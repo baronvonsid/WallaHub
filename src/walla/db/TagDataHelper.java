@@ -26,7 +26,7 @@ public interface TagDataHelper {
 	public TagList GetUserTagList(long userId) throws WallaException;
 	public int GetTotalImageCount(long tagId) throws WallaException;
 	public void UpdateTagTimeAndCount(long userId, long tagId) throws WallaException;
-	public void AddRemoveTagImages(long userId, long tagId, ImageMoveList moveList, boolean add) throws WallaException;
+	public void AddRemoveTagImages(long userId, long tagId, ImageIdList moveList, boolean add) throws WallaException;
 	public long[] GetGalleriesLinkedToTag(long userId, long tagId) throws WallaException;
 	public long[] ReGenDynamicTags(long userId) throws WallaException;
 }

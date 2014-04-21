@@ -208,7 +208,7 @@ public class TagService {
 		}
 	}
 
-	public int AddRemoveTagImages(long userId, String tagName, ImageMoveList moveList, boolean add)
+	public int AddRemoveTagImages(long userId, String tagName, ImageIdList moveList, boolean add)
 	{
 		try {
 			meLogger.debug("AddRemoveTagImages() begins. UserId:" + userId + " TagName:" + tagName);

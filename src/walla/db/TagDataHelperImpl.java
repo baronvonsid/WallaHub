@@ -428,7 +428,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 
 			String selectSql = "SELECT COUNT(*) "
 								+ "FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId "
-								+ "WHERE ti.[TagId] = ? AND i.Status = 3";
+								+ "WHERE ti.[TagId] = ? AND i.Status = 4";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, tagId);
@@ -480,7 +480,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 					+ " i.[RecordVersion],im.[UploadDate],im.[TakenDate], i.[CategoryId],"
 					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
-					+ " WHERE ti.[TagId] = ? AND i.Status = 3 ) AS RR"
+					+ " WHERE ti.[TagId] = ? AND i.Status = 4 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, tagImageList.getId());
@@ -617,7 +617,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 
 			String updateSql = "UPDATE [Tag] SET [LastUpdated] = dbo.GetDateNoMS(), "
 					+ "[ImageCount] = (SELECT COUNT(1) FROM [TagImage] TI INNER JOIN [Image] I ON TI.[ImageId] = I.[ImageId] "
-					+ "WHERE TI.[TagId] = [Tag].[TagId] AND I.[Status]=3) "
+					+ "WHERE TI.[TagId] = [Tag].[TagId] AND I.[Status]=4) "
 					+ "WHERE [Tag].TagId = " + tagId + " AND [UserId] = " + userId;
 			
 			us = conn.createStatement();
@@ -653,7 +653,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 		}
 	}	
 
-	public void AddRemoveTagImages(long userId, long tagId, ImageMoveList moveList, boolean add) throws WallaException
+	public void AddRemoveTagImages(long userId, long tagId, ImageIdList moveList, boolean add) throws WallaException
 	{
 		Connection conn = null;
 		PreparedStatement bs = null;

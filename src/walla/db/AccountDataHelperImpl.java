@@ -511,6 +511,47 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 	}
 	
+	public long FindExistingUserApp(long userId, int appId, int platformId, String machineName) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [UserAppId] FROM [dbo].[UserApp] WHERE [UserId] = ? AND [AppId] = ? AND [PlatformId] = ? AND [MachineName] = ?";
+							
+			ps = conn.prepareStatement(selectSql);
+			ps.setLong(1, userId);
+			ps.setInt(2, appId);
+			ps.setInt(3, platformId);
+			ps.setString(4, machineName);
+
+			resultset = ps.executeQuery();
+
+			if (!resultset.next())
+			{
+				return 0;
+			}
+			
+			return resultset.getLong(1);
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in FindExistingUserApp", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in FindExistingUserApp", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public UserApp GetUserApp(long userId, long userAppId) throws WallaException
 	{
 		Connection conn = null;

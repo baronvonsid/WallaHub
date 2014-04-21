@@ -415,7 +415,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 
 			String selectSql = "SELECT COUNT(*) "
 								+ "FROM [Image]"
-								+ "WHERE [UserId] = ? AND [CategoryId] = ? AND Status = 3";
+								+ "WHERE [UserId] = ? AND [CategoryId] = ? AND Status = 4";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, userId);
@@ -468,7 +468,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 					+ " im.[UploadDate],im.[TakenDate],i.[RecordVersion], i.[CategoryId],"
 					+ " im.[Size], im.[Aperture],im.[ShutterSpeed],im.[ISO]"
 					+ " FROM Image i INNER JOIN ImageMeta im ON i.ImageId = im.ImageId"
-					+ " WHERE i.[CategoryId] = ? AND i.Status = 3 ) AS RR"
+					+ " WHERE i.[CategoryId] = ? AND i.Status = 4 ) AS RR"
 					+ " WHERE RR.[Rank] > ? AND RR.[Rank] <= ? ORDER BY [Name]";
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, categoryImageList.getId());
@@ -690,7 +690,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			
 			//Process an update to the main record.
 			String updateVersionSql = "UPDATE [dbo].[Category] SET [LastUpdated] = dbo.GetDateNoMS(), "
-					+ "[ImageCount] = (SELECT COUNT(1) FROM Image I WHERE I.[CategoryId] = [Category].[CategoryId] AND I.[STATUS] = 3) "
+					+ "[ImageCount] = (SELECT COUNT(1) FROM Image I WHERE I.[CategoryId] = [Category].[CategoryId] AND I.[STATUS] = 4) "
 					+ "WHERE [UserId] = " + userId + " AND [CategoryId] = ";
 			ds = conn.createStatement();
 			
@@ -784,7 +784,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		}
 	}	
 
-	public long[] GetCategoryIdFromImageMoveList(long userId, ImageMoveList moveList) throws WallaException
+	public long[] GetCategoryIdFromImageMoveList(long userId, ImageIdList moveList) throws WallaException
 	{
 		Connection conn = null;
 		Statement statement = null;
@@ -856,7 +856,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		}
 	}
 	
-	public void MoveImagesToNewCategory(long userId, long categoryId, ImageMoveList moveList) throws WallaException
+	public void MoveImagesToNewCategory(long userId, long categoryId, ImageIdList moveList) throws WallaException
 	{
 		Connection conn = null;
 		Statement statement = null;

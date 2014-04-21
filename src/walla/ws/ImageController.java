@@ -87,6 +87,8 @@ public class ImageController {
 	private enum ImageStatus
 	{
 		Pending 0, Queued 1, Processing 2, Complete 3, Error 4, Inactive 5
+		
+		None = 0, FileReceived = 1, AwaitingProcessed = 2, BeingProcessed = 3, Complete = 4, Inactive = 5
 	}
 	*/
 	
@@ -118,35 +120,24 @@ public class ImageController {
 			int responseCode = 0;
 			
 			//Use status to work if create or update
-			if (imageMeta.getStatus() == 0)
+			if (imageMeta.getStatus() == 4)
+			{
+				responseCode = imageService.CreateUpdateImageMeta(userId, imageMeta, imageId);	
+			}
+			else if (imageMeta.getStatus() == 1)
 			{
 				boolean found = false;
 				
-				for(UploadStatusList.ImageUploadRef uploadRefCheck: this.sessionState.getUploadStatusList().getImageUploadRef())
+				for (int i = 0; i < this.sessionState.getUploadFilesReceived().size(); i++)
 				{
-					if (uploadRefCheck.getImageId().equals(imageId)) 
-					{ 
+					if (imageId == this.sessionState.getUploadFilesReceived().get(i))
+					{
 						found = true;
 						
-						GregorianCalendar oldGreg = new GregorianCalendar();
-						XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
-						
+						this.sessionState.getUploadFilesReceived().remove(i);
 						responseCode = imageService.CreateUpdateImageMeta(userId, imageMeta, imageId);
 						
-						if (responseCode == HttpStatus.CREATED.value())
-						{
-							uploadRefCheck.setImageStatus(1);
-							uploadRefCheck.setName(imageMeta.getName());
-							uploadRefCheck.setLastUpdated(xmlOldGreg);
-							uploadRefCheck.setErrorMessage("");
-						}
-						else
-						{
-							uploadRefCheck.setImageStatus(4);
-							uploadRefCheck.setName(imageMeta.getName());
-							uploadRefCheck.setErrorMessage("Upload failed.  Code: " + responseCode);
-							uploadRefCheck.setLastUpdated(xmlOldGreg);
-						}
+						continue;
 					}
 				}
 				
@@ -159,7 +150,9 @@ public class ImageController {
 			}
 			else
 			{
-				responseCode = imageService.CreateUpdateImageMeta(userId, imageMeta, imageId);
+				String error = "Meta data cannot be updated for an image with this status.";
+				meLogger.error(error);
+				responseCode = HttpStatus.NOT_ACCEPTABLE.value();
 			}
 
 			httpResponse.setStatus(responseCode);
@@ -323,18 +316,18 @@ public class ImageController {
 			}
 
 			//Save record for image upload state 
-			UploadStatusList.ImageUploadRef uploadRef = new UploadStatusList.ImageUploadRef();
-			uploadRef.setImageId(newImageId);
-			uploadRef.setImageStatus(0);
+			//UploadStatusList.ImageUploadRef uploadRef = new UploadStatusList.ImageUploadRef();
+			//uploadRef.setImageId(newImageId);
+			//uploadRef.setImageStatus(0);
 			
 			//Calendar calDate = Calendar.getInstance();
-			GregorianCalendar oldGreg = new GregorianCalendar();
+			//GregorianCalendar oldGreg = new GregorianCalendar();
 			//oldGreg.setTime(calDate.getTime());
-			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+			//XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
 			
-			uploadRef.setLastUpdated(xmlOldGreg);
+			//uploadRef.setLastUpdated(xmlOldGreg);
 			
-			this.sessionState.getUploadStatusList().getImageUploadRef().add(uploadRef);
+			this.sessionState.getUploadFilesReceived().add(newImageId);
 
 			
 			
@@ -435,6 +428,53 @@ public class ImageController {
         }
 	}
 	
+	//  GET /image/image/uploadstatus
+	//  None = 0, FileReceived = 1, AwaitingProcessed = 2, BeingProcessed = 3, Complete = 4, Inactive = 5
+	//  No client caching.  Check client side version against db timestamp.
+	@RequestMapping(value="/{userName}/image/uploadstatus", method=RequestMethod.POST, produces=MediaType.APPLICATION_XML_VALUE,
+			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody UploadStatusList GetUploadStatus(
+			@RequestBody ImageIdList imageIdList,
+			@PathVariable("userName") String userName,
+			HttpServletResponse httpResponse)
+	{	
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request received, User:" + userName.toString());}
+
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				return null;
+			}
+
+			CustomResponse customResponse = new CustomResponse();
+			UploadStatusList uploadStatusList = imageService.GetUploadStatusList(userId, imageIdList, this.sessionState.getUploadFilesReceived(),customResponse);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request completed, User:" + userName.toString() + " Response Code:" + customResponse.getResponseCode());}
+			
+			httpResponse.addHeader("Cache-Control", "no-cache");
+			httpResponse.setStatus(customResponse.getResponseCode());
+			return uploadStatusList;
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetUploadStatus", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+
+	
+	
+	
+	
+	
+	
+	
+	
+	/*
 	//  GET /image/{imageId}/status
 	//  ReceivedImage 1, Awaiting 2, Processing 3, Complete 4, Error 5, Inactive 6
 	//  No client caching.  Check client side version against db timestamp.
@@ -448,7 +488,7 @@ public class ImageController {
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request received, User:" + userName.toString());}
 
 			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
+			long userId = UserTools.CheckUser(userName);
 			if (userId < 0)
 			{
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -482,6 +522,7 @@ public class ImageController {
 			return null;
 		}
 	}
+	*/
 	
 	//GET /image/{imageId}/original
 	//Not client or server side caching.
@@ -512,7 +553,7 @@ public class ImageController {
 			ImageMeta responseImageMeta = imageService.GetImageMeta(userId, imageId,customResponse);
         	if (customResponse.getResponseCode() == HttpStatus.OK.value())
         	{
-        		if (responseImageMeta.getStatus().intValue() != 3)
+        		if (responseImageMeta.getStatus().intValue() != 4)
         		{
         			String error = "Image request cannot be completed.  Image has an incorrect status for downloading.  Status:" + responseImageMeta.getStatus();
         			meLogger.error(error);

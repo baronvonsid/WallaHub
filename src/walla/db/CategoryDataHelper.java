@@ -28,8 +28,8 @@ public interface CategoryDataHelper {
 	public long[] GetGalleryReferencingCategory(long userId, long[] categoryIds) throws WallaException;
 	public void UpdateCategoryTimeAndCount(long userId, long[] categoryIds) throws WallaException;
 	
-	public long[] GetCategoryIdFromImageMoveList(long userId, ImageMoveList moveList) throws WallaException;
-	public void MoveImagesToNewCategory(long userId, long categoryId, ImageMoveList moveList) throws WallaException;
+	public long[] GetCategoryIdFromImageMoveList(long userId, ImageIdList moveList) throws WallaException;
+	public void MoveImagesToNewCategory(long userId, long categoryId, ImageIdList moveList) throws WallaException;
 	
 	
 }

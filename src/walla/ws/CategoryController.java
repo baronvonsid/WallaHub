@@ -252,7 +252,7 @@ public class CategoryController {
 	@RequestMapping(value = { "/{userName}/category/{categoryId}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void MoveToNewCategory(
-			@RequestBody ImageMoveList moveList,
+			@RequestBody ImageIdList imageIdList,
 			@PathVariable("categoryId") long categoryId,
 			@PathVariable("userName") String userName,
 			HttpServletResponse httpResponse)
@@ -268,7 +268,7 @@ public class CategoryController {
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
 			}
 	
-			int responseCode = categoryService.MoveToNewCategory(userId, categoryId, moveList);
+			int responseCode = categoryService.MoveToNewCategory(userId, categoryId, imageIdList);
 	
 			httpResponse.setStatus(responseCode);
 			

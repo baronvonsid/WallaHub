@@ -9,8 +9,9 @@ public class CustomSessionState {
 
 	private String userName = "";
 	private long userId = -1;
-	private UploadStatusList uploadStatusList;
-	private boolean initUploadList = false;
+	private ArrayList<Long> uploadReceivedImageIds = null;
+	//private UploadStatusList uploadStatusList;
+	//private boolean initUploadList = false;
 	private long userAppId = -1;
 	private int platformId = -1;
 	private int appId = -1;
@@ -38,23 +39,12 @@ public class CustomSessionState {
 		this.userId = value;
 	}
 	
-	public UploadStatusList getUploadStatusList()
-	{
-		if (uploadStatusList == null)
-			{ uploadStatusList = new UploadStatusList(); }
-		
-		return this.uploadStatusList;
-	}
-	
-	public boolean getInitUploadList()
-	{
-		return this.initUploadList;
-	}
-	
-	public void setInitUploadList(boolean value)
-	{
-		initUploadList = value;
-	}
+    public List<Long> getUploadFilesReceived() {
+        if (uploadReceivedImageIds == null) {
+        	uploadReceivedImageIds = new ArrayList<Long>();
+        }
+        return this.uploadReceivedImageIds;
+    }
 	
 	public long getUserAppId()
 	{
