@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,20 @@ public class GalleryService {
 			}
 			else
 			{
+				if (newGallery.getId() == null || newGallery.getVersion() == null)
+				{
+					String error = "Update Gallery failed, ids and versions weren't supplied.";
+					meLogger.error(error);
+					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+				}
+				
+				if (existingGallery.getId().longValue() != newGallery.getId().longValue())
+				{
+					String error = "Update Gallery failed, ids don't match.";
+					meLogger.error(error);
+					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+				}
+				
 				if (existingGallery.getVersion().intValue() != newGallery.getVersion().intValue())
 				{
 					String error = "Update Gallery failed, record versions don't match.";
@@ -91,7 +106,7 @@ public class GalleryService {
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CreateUpdateGallery", ex);
+			meLogger.error("Unexpected error when trying to process CreateUpdateGallery", ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
 	}
@@ -235,6 +250,89 @@ public class GalleryService {
 		catch (Exception ex) {
 			meLogger.error(ex);
 			return 0;
+		}
+	}
+	
+	public GalleryOptions GetGalleryOptions(long userId, CustomResponse customResponse)
+	{
+		try {
+			//Check user can access gallery list
+			//HttpStatus.UNAUTHORIZED.value()
+			
+			meLogger.debug("GetGalleryOptions() begins. UserId:" + userId);
+			
+			//Get Presentation and Style objects from memory.
+			GalleryOptions options = new GalleryOptions();
+			options.setPresentation(new GalleryOptions.Presentation());
+			List<Presentation> presentations = cachedData.GetPresentationList();
+			
+			for (Iterator<Presentation> iterater = presentations.iterator(); iterater.hasNext();)
+			{
+				Presentation current = (Presentation)iterater.next();
+
+				GalleryOptions.Presentation.PresentationRef ref = new GalleryOptions.Presentation.PresentationRef();
+				ref.setPresentationId(current.getPresentationId());
+				ref.setName(current.getName());
+				ref.setDescription(current.getDesc());
+				ref.setJspName(current.getJspName());
+				ref.setCssExtension(current.getCssExtension());
+				ref.setMaxSections(current.getMaxSections());
+				
+				options.getPresentation().getPresentationRef().add(ref);
+			}
+			
+			options.setStyle(new GalleryOptions.Style());
+			List<Style> style = cachedData.GetStyleList();
+			
+			for (Iterator<Style> iterater = style.iterator(); iterater.hasNext();)
+			{
+				Style current = (Style)iterater.next();
+
+				GalleryOptions.Style.StyleRef ref = new GalleryOptions.Style.StyleRef();
+				ref.setStyleId(current.getStyleId());
+				ref.setName(current.getName());
+				ref.setDescription(current.getDesc());
+				ref.setCssFolder(current.getCssFolder());
+				
+				options.getStyle().getStyleRef().add(ref);
+			}
+			
+			
+			meLogger.debug("GetGalleryOptions has completed. UserId:" + userId);
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return options;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetGalleryOptions",ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+
+	public Gallery GetGallerySections(long userId, Gallery requestGallery, CustomResponse customResponse)
+	{
+		try {
+			meLogger.debug("GetGallerySections() begins. UserId:" + userId);
+			
+			long newTempGalleryId = utilityDataHelper.GetNewId("TempGalleryId");
+			
+			Gallery gallery = galleryDataHelper.GetGallerySections(userId, requestGallery, newTempGalleryId);
+			
+			meLogger.debug("GetGallerySections has completed. UserId:" + userId);
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return gallery;
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process GetGallerySections", wallaEx);
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
+			return null;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetGallerySections",ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
 		}
 	}
 	

@@ -145,6 +145,112 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		}
 	}
 	
+	public List<Style> GetStyleList() throws WallaException
+	{
+		Connection conn = null;
+		Statement sQuery = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [StyleId],[Name],[Description],[CssFolder] FROM [dbo].[GalleryStyle]";
+			
+			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+			resultset = sQuery.executeQuery(selectSql);
+			
+			List<Style> styleList = new ArrayList<Style>();
+			
+			while (resultset.next())
+			{
+				Style style = new Style();
+				style.setStyleId(resultset.getInt(1));
+				style.setName(resultset.getString(2));
+				style.setDesc(resultset.getString(3));
+				style.setCssFolder(resultset.getString(4));
+				
+				styleList.add(style);
+			}
+			resultset.close();
+			
+			if (styleList.size() < 1)
+			{
+				String error = "GetStyleList didn't return any records";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetStyleList", error, 0);
+			}
+			
+			return styleList;
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetStyleList", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetStyleList", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
+	public List<Presentation> GetPresentationList() throws WallaException
+	{
+		Connection conn = null;
+		Statement sQuery = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections] FROM [dbo].[GalleryPresentation]";
+
+			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+			resultset = sQuery.executeQuery(selectSql);
+			
+			List<Presentation> presentationList = new ArrayList<Presentation>();
+			
+			while (resultset.next())
+			{
+				Presentation presentation = new Presentation();
+				presentation.setPresentationId(resultset.getInt(1));
+				presentation.setName(resultset.getString(2));
+				presentation.setDesc(resultset.getString(3));
+				presentation.setJspName(resultset.getString(4));
+				presentation.setCssExtension(resultset.getString(5));
+				presentation.setMaxSections(resultset.getInt(6));
+				
+				presentationList.add(presentation);
+			}
+			resultset.close();
+			
+			if (presentationList.size() < 1)
+			{
+				String error = "GetPresentationList didn't return any records";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetPresentationList", error, 0);
+			}
+			
+			return presentationList;
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetPresentationList", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetPresentationList", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public long GetNewId(String idType) throws WallaException
 	{
 		Connection conn = null;

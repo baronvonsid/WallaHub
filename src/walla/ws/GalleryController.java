@@ -9,9 +9,11 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.springframework.stereotype.Controller;
 import org.w3c.dom.*;
 
+import java.awt.image.BufferedImage;
 import java.util.Date;
 import java.util.List;
 
+import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -85,7 +87,7 @@ public class GalleryController {
 			}
 	
 			httpResponse.setStatus(responseCode);
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateGallery tag request completed, User:" + userName.toString() + ", Gallery:" + galleryName + " Response code: " + responseCode);}
+			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateGallery request completed, User:" + userName.toString() + ", Gallery:" + galleryName + " Response code: " + responseCode);}
 		}
 		catch (Exception ex) {
 			meLogger.error("Received Exception in CreateUpdateGallery", ex);
@@ -210,5 +212,79 @@ public class GalleryController {
 		}
 	}
 
+	//  GET - /{userName}/gallery/galleryoptions
+	@RequestMapping(value="/{userName}/gallery/galleryoptions", method=RequestMethod.GET, 
+	produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody GalleryOptions GetGalleryOptions(
+			@PathVariable("userName") String userName,
+			HttpServletRequest requestObject,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryOptions request received, User:" + userName.toString());}
 
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				return null;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			GalleryOptions galleryOptions = galleryService.GetGalleryOptions(userId, customResponse);
+	
+			httpResponse.addHeader("Cache-Control", "Public");
+			httpResponse.setStatus(customResponse.getResponseCode());
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryOptions completed, User:" + userName.toString() 
+					+ " Response code:" + customResponse.getResponseCode());}
+			
+			return galleryOptions;
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetGalleryOptions", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+		
+	}
+	
+	//  GET - /{userName}//gallery/gallerysections
+	//  No client caching.  No Server caching
+	@RequestMapping(value="/{userName}/gallery/gallerysections", method=RequestMethod.POST, consumes = MediaType.APPLICATION_XML_VALUE,
+			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody Gallery GetGallerySections(
+			@RequestBody Gallery requestGallery,
+			@PathVariable("userName") String userName,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGallerySections request received, User:" + userName.toString());}
+			
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				return null;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			Gallery responseGallery = galleryService.GetGallerySections(userId, requestGallery, customResponse);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGallerySections request completed, User:" + userName.toString());}
+			
+			httpResponse.addHeader("Cache-Control", "no-cache");
+			httpResponse.setStatus(customResponse.getResponseCode());
+			return responseGallery;
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetGallerySections", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
 }

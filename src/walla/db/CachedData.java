@@ -18,6 +18,8 @@ public class CachedData {
 	private Date cacheUpdateTime = new Date();
 	private List<Platform> platforms = null;
 	private List<App> apps = null;
+	private List<Style> styles = null;
+	private List<Presentation> presentations = null;
 	private UtilityDataHelperImpl utilityDataHelper;
 	private static final Logger meLogger = Logger.getLogger(CachedData.class);
 	
@@ -40,7 +42,8 @@ public class CachedData {
 			//Cache is out of date, so retrieve the latest.
 			platforms = utilityDataHelper.GetPlatformList();
 			apps = utilityDataHelper.GetAppList();
-			
+			styles = utilityDataHelper.GetStyleList();
+			presentations = utilityDataHelper.GetPresentationList();
 			Calendar calNow = Calendar.getInstance();
 			cacheUpdateTime.setTime(calNow.getTimeInMillis());
 			
@@ -126,6 +129,42 @@ public class CachedData {
 		}
 		catch (Exception ex) {
 			meLogger.error("Unexpected Exception in GetApp", ex);
+			throw new WallaException(ex, 0);
+		}
+	}
+	
+	public List<Style> GetStyleList() throws WallaException
+	{
+		try
+		{
+			meLogger.debug("GetStyleList has been started");
+			
+			CheckAndUpdateCache();
+			
+			meLogger.debug("GetStyleList has been completed");
+			
+			return styles;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetStyleList", ex);
+			throw new WallaException(ex, 0);
+		}
+	}
+	
+	public List<Presentation> GetPresentationList() throws WallaException
+	{
+		try
+		{
+			meLogger.debug("GetPresentationList has been started");
+			
+			CheckAndUpdateCache();
+			
+			meLogger.debug("GetPresentationList has been completed");
+			
+			return presentations;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetPresentationList", ex);
 			throw new WallaException(ex, 0);
 		}
 	}

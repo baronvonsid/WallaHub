@@ -480,7 +480,7 @@ public class CategoryService {
 			for (int i = 0; i < galleryIds.length; i++)
 			{
 				//TODO decouple
-				galleryService.RefreshGalleryImages(userId, galleryIds[0]);
+				galleryService.RefreshGalleryImages(userId, galleryIds[i]);
 			}
 		}
 		catch (WallaException wallaEx) {

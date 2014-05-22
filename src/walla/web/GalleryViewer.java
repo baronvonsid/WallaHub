@@ -140,8 +140,8 @@ public class GalleryViewer {
 				else
 				{
 					//No match, no session created.
-					//Pause for 1 second and return error.
-					Thread.sleep(1000);
+					//Pause for 3 second and return error.
+					Thread.sleep(3000);
 					customResponse.setResponseCode(HttpStatus.UNAUTHORIZED.value());
 					model.addAttribute("errorMessage", "Gallery could not be loaded.  The error code received was: " + customResponse.getResponseCode()); 
 				}
@@ -165,8 +165,6 @@ public class GalleryViewer {
 		}
 	}
 	
-	
-	//, headers={"Accept-Charset=utf-8"}
 	
 	//  GET /{userName}/gallery/{galleryName}/{sectionId}/{imageCursor}/{size}
 	@RequestMapping(value="/{userName}/gallery/{galleryName}/{sectionId}/{imageCursor}/{size}", method=RequestMethod.GET, 
@@ -304,4 +302,73 @@ public class GalleryViewer {
 	}
 	
 
+	//  GET /{userName}/gallerypreview
+	@RequestMapping(value = { "/{userName}/gallerypreview" }, method = { RequestMethod.GET }, produces=MediaType.APPLICATION_XHTML_XML_VALUE )
+	public String GetGalleryPreview(
+			@RequestParam(value="styleId", required=true) int styleId,
+			@RequestParam(value="presentationId", required=true) int presentationId,
+			@RequestParam(value="numSections", required=true) int numSections,
+			@RequestParam(value="showGalleryName", required=true) boolean showGalleryName,
+			@RequestParam(value="showGalleryDesc", required=true) boolean showGalleryDesc,
+			@RequestParam(value="showImageName", required=true) boolean showImageName,
+			@RequestParam(value="showImageDesc", required=true) boolean showImageDesc,
+			@RequestParam(value="showImageMeta", required=true) boolean showImageMeta,
+			@PathVariable("userName") String userName,
+			Model model,
+			HttpServletResponse httpResponse)
+	{
+		String errorJsp = "GalleryViewerError";
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreview request received, User: " + userName);}
+
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				model.addAttribute("errorMessage", "User not authorized to access preview");
+				return errorJsp;
+			}
+
+			model.addAttribute("userId", userId); 
+			model.addAttribute("userName", userName); 
+			
+			model.addAttribute("css", UserTools.GetCssName(styleId)); 
+			if (numSections > 0)
+			{
+				model.addAttribute("groupingType", 1);
+				model.addAttribute("sectionList", UserTools.GetExampleSections(numSections));
+				model.addAttribute("totalImageCount", numSections * 20); 
+			}
+			else
+			{
+				model.addAttribute("groupingType", 0);
+				model.addAttribute("sectionList", null);
+				model.addAttribute("totalImageCount", 20); 
+			}
+
+			String responseJsp = UserTools.GetJspName(presentationId);
+			
+			//Get gallery name and description
+			model.addAttribute("name", "Example Gallery"); 
+			model.addAttribute("desc", "Some text to describe my gallery");
+			
+			model.addAttribute("showGalleryName", showGalleryName);
+			model.addAttribute("showGalleryDesc", showGalleryDesc);
+			model.addAttribute("showImageName", showImageName);
+			model.addAttribute("showImageDesc", showImageDesc);
+			model.addAttribute("showImageMeta", showImageMeta);
+
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreview request completed, User:" + userName.toString());}
+
+			return responseJsp;
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetGalleryPreview", ex);
+			model.addAttribute("errorMessage", "Preview could not be loaded.  Error message: " + ex.getMessage()); 
+			return errorJsp;
+		}
+	}
+	
+	
 }

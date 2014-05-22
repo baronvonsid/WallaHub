@@ -395,8 +395,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	public void CreateImage(long userId, ImageMeta newImage) throws WallaException 
 	{
 		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],"
-				+ "[RecordVersion],[LastUpdated],[UserAppId],[UserId]) "
-				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,?)";
+				+ "[RecordVersion],[LastUpdated],[UserAppId],[Error],[UserId]) "
+				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,0,?)";
 		
 		String sqlMeta = "INSERT INTO [ImageMeta] ([ImageId],"
 				+ "[Width],[Height],[Size],[TakenDate],[TakenDateFile],[UploadDate],"
@@ -443,7 +443,7 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psMeta.setLong(3, newImage.getHeight());
 			psMeta.setLong(4, newImage.getSize());
 
-			if (newImage.isTakenDateSpecified())
+			if (newImage.isTakenDateSet())
 			{ psMeta.setDate(5,new java.sql.Date(newImage.getTakenDate().toGregorianCalendar().getTime().getTime())); }
 			else
 			{ psMeta.setNull(5, java.sql.Types.DATE); }
@@ -585,10 +585,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			psMeta.setInt(8, existingImage.getISO());
 			psMeta.setInt(9, existingImage.getOrientation());
 
-			if (existingImage.getTakenDate() == null)
-			{ psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));}
-			else
-			{ psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDateMeta().toGregorianCalendar().getTime().getTime()));}
+			//Should of already been defaulted to a value.
+			psMeta.setDate(10,new java.sql.Date(existingImage.getTakenDate().toGregorianCalendar().getTime().getTime()));
 			
 			if (existingImage.getTakenDateFile() != null)
 			{ psMeta.setDate(11,new java.sql.Date(existingImage.getTakenDateFile().toGregorianCalendar().getTime().getTime())); }
@@ -852,13 +850,12 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			{
 				updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
 						+ "[ErrorMessage] = ?, [Error] = 1 "
-						+ "WHERE ImageId = ? AND [UserId] = ? AND [Status] = ?";
+						+ "WHERE ImageId = ? AND [UserId] = ?";
 				
 				ps = conn.prepareStatement(updateSql);
 				ps.setString(1, errorMessage);
 				ps.setLong(2, imageId);
 				ps.setLong(3, userId);
-				ps.setInt(4, status-1);
 			}
 			else
 			{

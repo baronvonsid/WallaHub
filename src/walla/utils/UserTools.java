@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import walla.datatypes.*;
+import walla.datatypes.auto.Gallery;
 
 import javax.servlet.ServletOutputStream;
 
@@ -20,14 +22,14 @@ import org.apache.log4j.Logger;
 public final class UserTools {
 
 	
-	public static long CheckUser(String userName)
+	public static long CheckUser(String userName) throws InterruptedException
 	{
 		//Check user is logged on and return user Id.
 		
 		if (userName.equals("simon2345"))
 		{
+			Thread.sleep(5000);
 			return -1;
-			
 		}
 		else
 		{
@@ -174,6 +176,12 @@ public final class UserTools {
 				break;
 		}
 		return jspName;
+		
+	}
+	
+	public static Gallery.Sections.SectionRef GetExampleSections(int count)
+	{
+		return null;
 		
 	}
 	

@@ -251,6 +251,44 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				}
 			}
 			
+			if (gallery.getSections() != null)
+			{
+				if (gallery.getSections().getSectionRef().size() > 0)
+				{
+					boolean doingInsert = false;
+					String insertSql = "INSERT INTO [dbo].[GallerySection] ([GalleryId],[SectionId],[ImageCount],[Sequence],[NameOverride],[DescOverride]) VALUES (?,?,0,?,?,?)";
+					is = conn.prepareStatement(insertSql);			   
+					
+					//Construct update SQL statements
+					for (Iterator<Gallery.Sections.SectionRef> sectionIterater = gallery.getSections().getSectionRef().iterator(); sectionIterater.hasNext();)
+					{
+						Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
+						
+						if (currentSectionRef.getSequence() > 0 || !currentSectionRef.getName().isEmpty() || !currentSectionRef.getDesc().isEmpty())
+						{
+							is.setLong(1, galleryId); 
+							is.setLong(2, currentSectionRef.getId());
+							is.setInt(3, currentSectionRef.getSequence());
+							is.setString(4, currentSectionRef.getName());
+							is.setString(5, currentSectionRef.getDesc());
+							is.addBatch();
+							controlCount++;
+							doingInsert = true;
+						}
+					}
+					
+					if (doingInsert)
+					{
+						responseCounts = is.executeBatch();
+						for (int i = 0; i < responseCounts.length; i++)
+						{
+							returnCount = returnCount + responseCounts[i];
+						}
+					}
+					is.close();
+				}
+			}
+			
 			//Check if any updates have been processed.
 			if (controlCount > 0)
 			{
@@ -358,6 +396,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ds.addBatch("DELETE FROM [dbo].[GalleryCategory] WHERE [GalleryId] = " + galleryId);
 			ds.addBatch("DELETE FROM [dbo].[GallerySort] WHERE [GalleryId] = " + galleryId);
 			ds.addBatch("DELETE FROM [dbo].[GalleryTag] WHERE [GalleryId] = " + galleryId);
+			ds.addBatch("DELETE FROM [dbo].[GallerySection] WHERE [GalleryId] = " + galleryId);
 			
 			//Execute statement and ignore counts.
 			ds.executeBatch();
@@ -624,20 +663,20 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			resultset.close();
 			ps.close();
 			
-			//Tags
+			//Sections
 			if (gallery.getGroupingType() > 0)
 			{
 				if (gallery.getGroupingType() == 1)
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(C.[Name],'No Grouping'),COALESCE(C.[Description],'') FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(C.[Name],'No Grouping'),COALESCE(C.[Description],''),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [Category] C ON GS.[SectionId] = C.[CategoryId] "
-							+ "WHERE GS.[GalleryId]= ?";
+							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],C.[Name]";
 				}
 				else
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(T.[Name],'No Grouping'),COALESCE(T.[Description],'') FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(T.[Name],'No Grouping'),COALESCE(T.[Description],''),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [TagView] T ON GS.[SectionId] = T.[TagId] "
-							+ "WHERE GS.[GalleryId]= ?";
+							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],T.[Name]";
 				}
 				
 				ps = conn.prepareStatement(selectSql);
@@ -648,10 +687,11 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				while (resultset.next())
 				{
 					Gallery.Sections.SectionRef section = new Gallery.Sections.SectionRef();
-					section.setSectionId(resultset.getLong(1));
+					section.setId(resultset.getLong(1));
 					section.setImageCount(resultset.getInt(2));
 					section.setName(resultset.getString(3));
 					section.setDesc(resultset.getString(4));
+					section.setSequence(resultset.getInt(5));
 					gallery.getSections().getSectionRef().add(section);
 				}
 				resultset.close();
@@ -677,13 +717,15 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount], "
 			+ "G.[SystemOwned], COALESCE(GS.[SectionId],0) AS SectionId, GS.[ImageCount], " 
-			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(C.[Name],'No Grouping') WHEN G.[GroupingType] = 2 THEN COALESCE(T.[Name],'No Grouping') ELSE '' END AS SectionName "
+			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(GS.[NameOverride],COALESCE(C.[Name],'No Grouping')) WHEN G.[GroupingType] = 2 THEN COALESCE(GS.[NameOverride],COALESCE(T.[Name],'No Grouping')) ELSE '' END AS SectionName, "
+			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(GS.[DescOverride],COALESCE(C.[Description],'')) WHEN G.[GroupingType] = 2 THEN COALESCE(GS.[NameOverride],COALESCE(T.[Description],'')) ELSE '' END AS SectionDesc, "
+			+ "COALESCE(GS.[Sequence],0) AS Sequence "
 			+ "FROM Gallery G "
 			+ "LEFT OUTER JOIN GallerySection GS ON G.[GalleryId] = GS.[GalleryId] "
 			+ "LEFT OUTER JOIN Category C ON GS.[SectionId] = C.[CategoryId] "
 			+ "LEFT OUTER JOIN TagView T ON GS.[SectionId] = T.[TagId] "
 			+ "WHERE G.[UserId] = " + userId
-			+ " ORDER BY G.[Name], SectionName";
+			+ " ORDER BY G.[Name], Sequence, SectionName";
 
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -719,6 +761,12 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 						section.setId(sectionId);
 						section.setImageCount(resultset.getInt(8));
 						section.setName(resultset.getString(9));
+						section.setDesc(resultset.getString(10));
+						
+						int sequence = resultset.getInt(11);
+						if (sequence > 0)
+							section.setSequence(sequence);
+						
 						sectionList.add(section);
 					}
 					
@@ -733,6 +781,11 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 					section.setId(resultset.getLong(7));
 					section.setImageCount(resultset.getInt(8));
 					section.setName(resultset.getString(9));
+					section.setDesc(resultset.getString(10));
+					int sequence = resultset.getInt(11);
+					if (sequence > 0)
+						section.setSequence(sequence);
+					
 					existingGalleryRef.getSectionRef().add(section);
 				}
 
@@ -1026,6 +1079,128 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		}
 	}
 
+	public Gallery GetGallerySections(long userId, Gallery requestGallery, long tempGalleryId) throws WallaException
+	{
+		String tagSql = "INSERT INTO [dbo].[TempGalleryTag] ([TempGalleryId],[TagId],[UserId]) VALUES (?,?,?)";
+		String categorySql = "INSERT INTO [dbo].[TempGalleryCategory] ([TempGalleryId],[CategoryId],[Recursive],[UserId]) VALUES (?,?,?,?)";
+		
+		Connection conn = null;
+		PreparedStatement ps = null;
+		Statement ds = null;
+		Statement gs = null;
+		ResultSet resultset = null;
+		Gallery responseGallery = null;
+		
+		int controlCount = 0;
+
+		try {
+			
+			meLogger.debug("GetGallerySections() begins. UserId:" + userId);
+			
+			responseGallery = new Gallery();
+			responseGallery.setSections(new Gallery.Sections());
+			
+			conn = dataSource.getConnection();
+			conn.setAutoCommit(false);
+			
+			if (requestGallery.getGroupingType() == 1)
+			{
+				//Category.
+				ps = conn.prepareStatement(categorySql);
+				for (Iterator<Gallery.Categories.CategoryRef> categoryIterater = requestGallery.getCategories().getCategoryRef().iterator(); categoryIterater.hasNext();)
+				{
+					Gallery.Categories.CategoryRef currentCategoryRef = (Gallery.Categories.CategoryRef)categoryIterater.next();
+					
+					ps.setLong(1, tempGalleryId);	  
+					ps.setLong(2, currentCategoryRef.getCategoryId());
+					ps.setBoolean(3, currentCategoryRef.isRecursive());
+					ps.setLong(4, userId);	
+
+					ps.addBatch();
+					controlCount++;
+				}
+			}
+			else
+			{
+				ps = conn.prepareStatement(tagSql);
+				for (Iterator<Gallery.Tags.TagRef> tagIterater = requestGallery.getTags().getTagRef().iterator(); tagIterater.hasNext();)
+				{
+					Gallery.Tags.TagRef currentTagRef = (Gallery.Tags.TagRef)tagIterater.next();
+					
+					ps.setLong(1, tempGalleryId);	  
+					ps.setLong(2, currentTagRef.getTagId());
+					ps.setLong(3, userId);	
+
+					ps.addBatch();
+					controlCount++;
+				}
+			}
+
+			//Perform updates.
+			if (controlCount != ps.executeBatch().length)
+			{
+				//TODO raise error
+				conn.rollback();
+				String error = "Insert sections statement didn't the correct success count.";
+				meLogger.error(error);
+				throw new WallaException(this.getClass().getName(), "GetGallerySections", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 	
+			}
+			
+			String executeSql = "SELECT SectionId, SectionName, SectionDesc FROM [dbo].[GenerateGallerySectionsTemp]"
+					+ "(" + userId + "," + tempGalleryId + ", " + requestGallery.getGroupingType() + "," + requestGallery.getSelectionType() + ")";
+			
+			gs = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+			
+			resultset = gs.executeQuery(executeSql);
+			
+			while (resultset.next())
+			{
+				Gallery.Sections.SectionRef newSection = new Gallery.Sections.SectionRef();
+				newSection.setId(resultset.getLong(1));
+				newSection.setName(resultset.getString(2));
+				newSection.setDesc(resultset.getString(3));
+				
+				
+				
+				responseGallery.getSections().getSectionRef().add(newSection);
+			}
+			
+			gs.close();
+			resultset.close();
+			
+			ds = conn.createStatement();
+			ds.addBatch("DELETE FROM TempGalleryCategory WHERE TempGalleryId = " + tempGalleryId);
+			ds.addBatch("DELETE FROM TempGalleryTag WHERE TempGalleryId = " + tempGalleryId);
+			
+			//Execute statement and ignore counts.
+			ds.executeBatch();
+			ds.close();
+
+			meLogger.debug("GetGallerySections() ends. UserId:" + userId);
+			
+			conn.commit();
+				
+			return responseGallery;
+			
+		} catch (SQLException sqlEx) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected SQLException in GetGallerySections", sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+		} catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
+		catch (Exception ex) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error("Unexpected Exception in GetGallerySections", ex);
+			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+		finally {
+	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
+	        if (ds != null) try { ds.close(); } catch (SQLException logOrIgnore) {}
+	        if (gs != null) try { gs.close(); } catch (SQLException logOrIgnore) {}
+	        if (resultset != null) try { resultset.close(); } catch (SQLException logOrIgnore) {}
+	        
+	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+		}
+	}
 }
-
-

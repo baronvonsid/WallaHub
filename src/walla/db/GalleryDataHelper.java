@@ -25,4 +25,6 @@ public interface GalleryDataHelper {
 	//public int GetTotalImageCount(long galleryId) throws WallaException;
 	//public void UpdateGalleryTimestamp(long galleryId) throws WallaException;
 	public void RegenerateGalleryImages(long userId, long galleryId) throws WallaException;
+	
+	public Gallery GetGallerySections(long userId, Gallery requestGallery, long tempGalleryId) throws WallaException;
 }
