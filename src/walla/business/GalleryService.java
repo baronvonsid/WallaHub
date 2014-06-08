@@ -8,11 +8,13 @@ import walla.utils.*;
 
 import javax.sql.DataSource;
 import javax.xml.datatype.*;
+
 import org.apache.log4j.Logger;
 import org.springframework.http.HttpStatus;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -253,18 +255,24 @@ public class GalleryService {
 		}
 	}
 	
-	public GalleryOptions GetGalleryOptions(long userId, CustomResponse customResponse)
+	public GalleryOptions GetGalleryOptions(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
 		try {
-			//Check user can access gallery list
-			//HttpStatus.UNAUTHORIZED.value()
+			Date latestDate = new Date();
+			Calendar cal = Calendar.getInstance();
+			cal.add(Calendar.YEAR, -10);
+			latestDate.setTime(cal.getTimeInMillis());
+			
 			
 			meLogger.debug("GetGalleryOptions() begins. UserId:" + userId);
 			
 			//Get Presentation and Style objects from memory.
+			List<Presentation> presentations = cachedData.GetPresentationList();
+			List<Style> style = cachedData.GetStyleList();
+
+			
 			GalleryOptions options = new GalleryOptions();
 			options.setPresentation(new GalleryOptions.Presentation());
-			List<Presentation> presentations = cachedData.GetPresentationList();
 			
 			for (Iterator<Presentation> iterater = presentations.iterator(); iterater.hasNext();)
 			{
@@ -278,12 +286,16 @@ public class GalleryService {
 				ref.setCssExtension(current.getCssExtension());
 				ref.setMaxSections(current.getMaxSections());
 				
+				if (current.getLastUpdated().after(latestDate) || current.getLastUpdated().equals(latestDate))
+				{
+					latestDate = current.getLastUpdated();
+				}
+				
 				options.getPresentation().getPresentationRef().add(ref);
 			}
+
 			
 			options.setStyle(new GalleryOptions.Style());
-			List<Style> style = cachedData.GetStyleList();
-			
 			for (Iterator<Style> iterater = style.iterator(); iterater.hasNext();)
 			{
 				Style current = (Style)iterater.next();
@@ -295,13 +307,31 @@ public class GalleryService {
 				ref.setCssFolder(current.getCssFolder());
 				
 				options.getStyle().getStyleRef().add(ref);
+				
+				if (current.getLastUpdated().after(latestDate) || current.getLastUpdated().equals(latestDate))
+				{
+					latestDate = current.getLastUpdated();
+				}
 			}
-			
 			
 			meLogger.debug("GetGalleryOptions has completed. UserId:" + userId);
 			
-			customResponse.setResponseCode(HttpStatus.OK.value());
-			return options;
+			if (clientVersionTimestamp == null || latestDate.after(clientVersionTimestamp))
+			{
+				GregorianCalendar oldGreg = new GregorianCalendar();
+				oldGreg.setTime(latestDate);
+				XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+				options.setLastChanged(xmlOldGreg);
+				
+				customResponse.setResponseCode(HttpStatus.OK.value());
+				return options;
+			}
+			else
+			{
+				meLogger.debug("No gallery options list generated because client list is up to date.");
+				customResponse.setResponseCode(HttpStatus.NOT_MODIFIED.value());
+				return null;
+			}
 		}
 		catch (Exception ex) {
 			meLogger.error("Unexpected error when trying to process GetGalleryOptions",ex);

@@ -154,7 +154,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [StyleId],[Name],[Description],[CssFolder] FROM [dbo].[GalleryStyle]";
+			String selectSql = "SELECT [StyleId],[Name],[Description],[CssFolder],[LastUpdated]  FROM [dbo].[GalleryStyle]";
 			
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -168,7 +168,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				style.setName(resultset.getString(2));
 				style.setDesc(resultset.getString(3));
 				style.setCssFolder(resultset.getString(4));
-				
+				style.setLastUpdated(new java.util.Date(resultset.getTimestamp(5).getTime()));
 				styleList.add(style);
 			}
 			resultset.close();
@@ -206,7 +206,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections] FROM [dbo].[GalleryPresentation]";
+			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections],[LastUpdated] FROM [dbo].[GalleryPresentation]";
 
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -222,6 +222,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				presentation.setJspName(resultset.getString(4));
 				presentation.setCssExtension(resultset.getString(5));
 				presentation.setMaxSections(resultset.getInt(6));
+				presentation.setLastUpdated(new java.util.Date(resultset.getTimestamp(7).getTime()));
 				
 				presentationList.add(presentation);
 			}

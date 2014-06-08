@@ -220,6 +220,7 @@ public class GalleryController {
 			HttpServletRequest requestObject,
 			HttpServletResponse httpResponse)
 	{
+		Date clientVersionTimestamp = null;
 		try
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryOptions request received, User:" + userName.toString());}
@@ -232,8 +233,14 @@ public class GalleryController {
 				return null;
 			}
 			
+			long headerDateLong = requestObject.getDateHeader("If-Modified-Since");
+			if (headerDateLong > 0)
+			{
+				clientVersionTimestamp = new Date(headerDateLong);
+			}
+			
 			CustomResponse customResponse = new CustomResponse();
-			GalleryOptions galleryOptions = galleryService.GetGalleryOptions(userId, customResponse);
+			GalleryOptions galleryOptions = galleryService.GetGalleryOptions(userId, clientVersionTimestamp, customResponse);
 	
 			httpResponse.addHeader("Cache-Control", "Public");
 			httpResponse.setStatus(customResponse.getResponseCode());

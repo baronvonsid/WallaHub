@@ -724,6 +724,36 @@ public class ImageService {
 		
 	}
 	
+	public BufferedImage GetAppImageFile(long userId, String imageRef, int width, int height, CustomResponse customResponse)
+	{
+		try
+		{
+			//Check for folder existing.  //Check for image existing.
+			Path filePath = Paths.get(destinationRoot,"Application", width + "x" + height, imageRef + ".jpg");
+			File filePathTemp = filePath.toFile();
+    		if (!filePathTemp.exists())
+    		{
+				String error = "Image not found. ImageRef: " + imageRef + " Height: " + height + " Width: " + width;
+				throw new WallaException("ImageService", "GetAppImageFile", error, HttpStatus.BAD_REQUEST.value());
+    		}
+
+			//Return image.
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return ImageIO.read(new File(filePath.toString()));
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process GetAppImageFile", wallaEx);
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
+			return null;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetAppImageFile",ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+		
+	}
+	
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
 	//*************************************************************************************************************

@@ -1,5 +1,7 @@
 package walla.datatypes.java;
 
+import java.util.Date;
+
 public class Presentation {
 
 	private int presentationId;
@@ -8,6 +10,7 @@ public class Presentation {
 	private String jspName;
 	private String cssExtension;
 	private int maxSections;
+	private Date lastUpdated;
 	
 	public Presentation() {
 		// TODO Auto-generated constructor stub
@@ -72,4 +75,16 @@ public class Presentation {
 	{
 		return this.maxSections;
 	}
+	
+	public void setLastUpdated(Date lastUpdated)
+	{
+		this.lastUpdated = lastUpdated;
+	}
+	
+	public Date getLastUpdated()
+	{
+		return this.lastUpdated;
+	}
+	
+	
 }

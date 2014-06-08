@@ -38,6 +38,7 @@
         </element>
   
       </sequence>
+      <attribute type="dateTime" name="lastChanged" />
     </complexType>
   </element>
 </schema>

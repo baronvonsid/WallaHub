@@ -667,6 +667,49 @@ public class ImageController {
 			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 	}
+	
+	//GET /{userName}/image/{imageId}/{width}/{height}
+	//Server side caching.  Client side caching.
+	@RequestMapping(value = { "/{userName}/appimage/{imageRef}/{width}/{height}" }, method = { RequestMethod.GET }, produces=MediaType.IMAGE_JPEG_VALUE )
+	public @ResponseBody void GetAppImage(
+			@PathVariable("userName") String userName,
+			@PathVariable("imageRef") String imageRef,
+			@PathVariable("width") int width,
+			@PathVariable("height") int height,
+			HttpServletRequest httpRequest,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetAppImage request received, User: " + userName + " imageRef:" + imageRef);}
+			
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetAppImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
+				return;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			BufferedImage responseImage = imageService.GetAppImageFile(userId, imageRef, width, height, customResponse);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetAppImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
+			httpResponse.setStatus(customResponse.getResponseCode());
+			
+			if (responseImage != null)
+			{
+				ImageIO.write(responseImage, "jpg", httpResponse.getOutputStream());
+			}
+			
+			//TODO add server side caching tag.
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetAppImage", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
 }
 
 

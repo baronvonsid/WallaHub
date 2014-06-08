@@ -88,8 +88,8 @@
         		{
         			Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
         			%>
-        		    <input type="radio" id="section<%=currentSectionRef.getSectionId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getSectionId()%>" />
-        		    <label for="section<%=currentSectionRef.getSectionId()%>"><%=currentSectionRef.getName()%></label>
+        		    <input type="radio" id="section<%=currentSectionRef.getId() %>" name="sectNavHor" data-section-id="<%=currentSectionRef.getId()%>" />
+        		    <label for="section<%=currentSectionRef.getId()%>"><%=currentSectionRef.getName()%></label>
         			<%
         		}
         		%></nav><%

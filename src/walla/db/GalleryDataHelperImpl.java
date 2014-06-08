@@ -264,13 +264,27 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 					{
 						Gallery.Sections.SectionRef currentSectionRef = (Gallery.Sections.SectionRef)sectionIterater.next();
 						
-						if (currentSectionRef.getSequence() > 0 || !currentSectionRef.getName().isEmpty() || !currentSectionRef.getDesc().isEmpty())
+						if (currentSectionRef.getSequence() != null || currentSectionRef.getName() != null || currentSectionRef.getDesc() != null)
 						{
 							is.setLong(1, galleryId); 
 							is.setLong(2, currentSectionRef.getId());
-							is.setInt(3, currentSectionRef.getSequence());
-							is.setString(4, currentSectionRef.getName());
-							is.setString(5, currentSectionRef.getDesc());
+							
+							if (currentSectionRef.getSequence() != null && currentSectionRef.getSequence() > 0)
+								is.setInt(3, currentSectionRef.getSequence());
+							else
+								is.setInt(3, 0);
+							
+							if (currentSectionRef.getName() != null && currentSectionRef.getName().length() > 0)
+								is.setString(4, currentSectionRef.getName());
+							else
+								is.setNull(4, java.sql.Types.VARCHAR);
+							
+							if (currentSectionRef.getDesc() != null && currentSectionRef.getDesc().length() > 0)
+								is.setString(5, currentSectionRef.getDesc());
+							else
+								is.setNull(5, java.sql.Types.VARCHAR);
+							
+							
 							is.addBatch();
 							controlCount++;
 							doingInsert = true;
@@ -668,13 +682,13 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			{
 				if (gallery.getGroupingType() == 1)
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(C.[Name],'No Grouping'),COALESCE(C.[Description],''),[Sequence] FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(C.[Name],'No Grouping')),COALESCE(GS.[DescOverride],COALESCE(C.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [Category] C ON GS.[SectionId] = C.[CategoryId] "
 							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],C.[Name]";
 				}
 				else
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(T.[Name],'No Grouping'),COALESCE(T.[Description],''),[Sequence] FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(T.[Name],'No Grouping')),COALESCE(GS.[DescOverride],COALESCE(T.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [TagView] T ON GS.[SectionId] = T.[TagId] "
 							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],T.[Name]";
 				}
@@ -1159,9 +1173,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				newSection.setId(resultset.getLong(1));
 				newSection.setName(resultset.getString(2));
 				newSection.setDesc(resultset.getString(3));
-				
-				
-				
+
 				responseGallery.getSections().getSectionRef().add(newSection);
 			}
 			

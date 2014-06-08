@@ -1,11 +1,14 @@
 package walla.datatypes.java;
 
+import java.util.Date;
+
 public class Style {
 
 	private int styleId;
 	private String name;
 	private String desc;
 	private String cssFolder;
+	private Date lastUpdated;
 	
 	public Style() {
 		// TODO Auto-generated constructor stub
@@ -49,5 +52,15 @@ public class Style {
 	public String getCssFolder()
 	{
 		return this.cssFolder;
+	}
+	
+	public void setLastUpdated(Date lastUpdated)
+	{
+		this.lastUpdated = lastUpdated;
+	}
+	
+	public Date getLastUpdated()
+	{
+		return this.lastUpdated;
 	}
 }
