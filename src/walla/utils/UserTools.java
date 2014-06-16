@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.util.Random;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -134,12 +135,26 @@ public final class UserTools {
 	    return rounded.doubleValue();
 	}
 	
+	public static int RandInt(int min, int max) {
+
+	    // Usually this should be a field rather than a method variable so
+	    // that it is not re-seeded every call.
+	    Random rand = new Random();
+
+	    // nextInt is normally exclusive of the top value,
+	    // so add 1 to make it inclusive
+	    int randomNum = rand.nextInt((max - min) + 1) + min;
+
+	    return randomNum;
+	}
+	
 	public static String GetComplexString()
 	{
 		UUID identifier = java.util.UUID.randomUUID();
 		return identifier.toString();
 	}
 	
+	/*
 	public static String GetCssName(int styleId)
 	{
 		String cssName = null;
@@ -162,6 +177,7 @@ public final class UserTools {
 		return cssName;
 	}
 	
+	
 	public static String GetJspName(int presentationId)
 	{
 		String jspName = null;
@@ -178,6 +194,7 @@ public final class UserTools {
 		return jspName;
 		
 	}
+	*/
 	
 	public static Gallery.Sections.SectionRef GetExampleSections(int count)
 	{

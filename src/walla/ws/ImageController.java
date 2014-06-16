@@ -68,6 +68,8 @@ import walla.utils.*;
 	GetOriginalImage GET /{userName}/image/{imageId}/original
 	GetMainCopyImage GET /{userName}/image/{imageId}/maincopy
 	GetImage GET /{userName}/image/{imageId}/{width}
+	GetPreviewMainCopyImage GET /{userName}/imagepreview/{imageId}/maincopy
+	GetPreviewImage GET /{userName}/imagepreview/{imageId}/{width}
 */
 
 @Controller
@@ -87,7 +89,6 @@ public class ImageController {
 	private enum ImageStatus
 	{
 		Pending 0, Queued 1, Processing 2, Complete 3, Error 4, Inactive 5
-		
 		None = 0, FileReceived = 1, AwaitingProcessed = 2, BeingProcessed = 3, Complete = 4, Inactive = 5
 	}
 	*/
@@ -312,7 +313,7 @@ public class ImageController {
 			{
 				httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("UploadImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.INTERNAL_SERVER_ERROR.value());}
-				return "";
+				return null;
 			}
 
 			//Save record for image upload state 
@@ -338,7 +339,7 @@ public class ImageController {
 		catch (Exception ex) {
 			meLogger.error("Received Exception in UploadImage", ex);
 			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return "0";
+			return null;
 		}
 	}
 
@@ -465,64 +466,6 @@ public class ImageController {
 			return null;
 		}
 	}
-
-	
-	
-	
-	
-	
-	
-	
-	
-	/*
-	//  GET /image/{imageId}/status
-	//  ReceivedImage 1, Awaiting 2, Processing 3, Complete 4, Error 5, Inactive 6
-	//  No client caching.  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/image/uploadstatus", method=RequestMethod.GET, headers={"Accept-Charset=utf-8"} )
-	public @ResponseBody UploadStatusList GetUploadStatus(
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
-	{	
-		try
-		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request received, User:" + userName.toString());}
-
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
-			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-				return null;
-			}
-			
-			//Check Session object for uploads which have been passed over to process.
-			boolean toCheck = false;
-			for(UploadStatusList.ImageUploadRef uploadRefCheck: this.sessionState.getUploadStatusList().getImageUploadRef())
-			{
-				meLogger.info("Upload status: " + uploadRefCheck.getImageId() + " " + uploadRefCheck.getImageStatus());
-				if (uploadRefCheck.getImageStatus() == 1 || uploadRefCheck.getImageStatus() == 2) { toCheck = true; }
-			}
-			
-			if (toCheck || !this.sessionState.getInitUploadList())
-			{
-				imageService.UpdateUploadStatusList(userId, this.sessionState.getUploadStatusList());
-			}
-
-			this.sessionState.setInitUploadList(true);
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request completed, User:" + userName.toString());}
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(HttpStatus.OK.value());
-			return this.sessionState.getUploadStatusList();
-		}
-		catch (Exception ex) {
-			meLogger.error("Received Exception in GetUploadStatus", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return null;
-		}
-	}
-	*/
 	
 	//GET /image/{imageId}/original
 	//Not client or server side caching.
@@ -593,7 +536,7 @@ public class ImageController {
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request received, User: " + userName + " ImageId:" + imageId);}
 			
 			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
+			long userId = UserTools.CheckUser(userName);
 			if (userId < 0)
 			{
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -602,9 +545,9 @@ public class ImageController {
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, 0, 0, true, customResponse);
+			BufferedImage responseImage = imageService.GetMainCopyImageFile(userId, imageId, false, customResponse);
 			//TODO - No cache header
-			Thread.sleep(1000);
+			//Thread.sleep(1000);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetMainCopyImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
 			httpResponse.setStatus(customResponse.getResponseCode());
@@ -621,7 +564,6 @@ public class ImageController {
 			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 	}
-	
 	
 	//GET /{userName}/image/{imageId}/{width}/{height}
 	//Server side caching.  Client side caching.
@@ -648,7 +590,7 @@ public class ImageController {
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			BufferedImage responseImage = imageService.GetImageFile(userId, imageId, width, height, false, customResponse);
+			BufferedImage responseImage = imageService.GetScaledImageFile(userId, imageId, width, height, false, customResponse);
 			//TODO - No cache header
 			//Thread.sleep(1000);
 			
@@ -693,7 +635,7 @@ public class ImageController {
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			BufferedImage responseImage = imageService.GetAppImageFile(userId, imageRef, width, height, customResponse);
+			BufferedImage responseImage = imageService.GetAppImageFile(imageRef, width, height, customResponse);
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetAppImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
 			httpResponse.setStatus(customResponse.getResponseCode());
@@ -710,6 +652,95 @@ public class ImageController {
 			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 	}
+
+	//GET /{userName}/imagepreview/{imageId}/maincopy
+	//Server side caching.  Client side caching.
+	@RequestMapping(value = { "/{userName}/imagepreview/{imageId}/maincopy" }, method = { RequestMethod.GET }, produces=MediaType.IMAGE_JPEG_VALUE )
+	public @ResponseBody void GetPreviewMainCopyImage(
+			@PathVariable("userName") String userName,
+			@PathVariable("imageId") long imageId,
+			HttpServletRequest httpRequest,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewMainCopyImage request received, User: " + userName + " ImageId:" + imageId);}
+			
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewMainCopyImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
+				return;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			BufferedImage responseImage = imageService.GetMainCopyImageFile(userId, imageId, true, customResponse);
+			//TODO - No cache header
+			//Thread.sleep(1000);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewMainCopyImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
+			httpResponse.setStatus(customResponse.getResponseCode());
+			
+			if (responseImage != null)
+			{
+				ImageIO.write(responseImage, "jpg", httpResponse.getOutputStream());
+			}
+			
+			//TODO add server side caching tag.
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetPreviewMainCopyImage", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
+
+	//GET /{userName}/imagepreview/{imageId}/{width}/{height}
+	//Server side caching.  Client side caching.
+	@RequestMapping(value = { "/{userName}/imagepreview/{imageId}/{width}/{height}" }, method = { RequestMethod.GET }, produces=MediaType.IMAGE_JPEG_VALUE )
+	public @ResponseBody void GetPreviewImage(
+			@PathVariable("userName") String userName,
+			@PathVariable("imageId") long imageId,
+			@PathVariable("width") int width,
+			@PathVariable("height") int height,
+			HttpServletRequest httpRequest,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewImage request received, User: " + userName + " ImageId:" + imageId);}
+			
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewImage request failed, User:" + userName.toString() + ", Response code: " + HttpStatus.UNAUTHORIZED.value());}
+				return;
+			}
+			
+			CustomResponse customResponse = new CustomResponse();
+			BufferedImage responseImage = imageService.GetScaledImageFile(userId, imageId, width, height, true, customResponse);
+			//TODO - No cache header
+			//Thread.sleep(1000);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetPreviewImage request completed, User:" + userName.toString() + ", Response code: " + customResponse.getResponseCode());}
+			httpResponse.setStatus(customResponse.getResponseCode());
+			
+			if (responseImage != null)
+			{
+				ImageIO.write(responseImage, "jpg", httpResponse.getOutputStream());
+			}
+			
+			//TODO add server side caching tag.
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetPreviewImage", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+		}
+	}
+	
 }
 
 
@@ -754,6 +785,56 @@ Client send Meta upload request on receiving Accepted.
 */
 
 /*
+
+
+	//  GET /image/{imageId}/status
+	//  ReceivedImage 1, Awaiting 2, Processing 3, Complete 4, Error 5, Inactive 6
+	//  No client caching.  Check client side version against db timestamp.
+	@RequestMapping(value="/{userName}/image/uploadstatus", method=RequestMethod.GET, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody UploadStatusList GetUploadStatus(
+			@PathVariable("userName") String userName,
+			HttpServletResponse httpResponse)
+	{	
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request received, User:" + userName.toString());}
+
+			//Retrieve user id and check user is valid for the login.
+			long userId = UserTools.CheckUser(userName);
+			if (userId < 0)
+			{
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				return null;
+			}
+			
+			//Check Session object for uploads which have been passed over to process.
+			boolean toCheck = false;
+			for(UploadStatusList.ImageUploadRef uploadRefCheck: this.sessionState.getUploadStatusList().getImageUploadRef())
+			{
+				meLogger.info("Upload status: " + uploadRefCheck.getImageId() + " " + uploadRefCheck.getImageStatus());
+				if (uploadRefCheck.getImageStatus() == 1 || uploadRefCheck.getImageStatus() == 2) { toCheck = true; }
+			}
+			
+			if (toCheck || !this.sessionState.getInitUploadList())
+			{
+				imageService.UpdateUploadStatusList(userId, this.sessionState.getUploadStatusList());
+			}
+
+			this.sessionState.setInitUploadList(true);
+			
+			if (meLogger.isDebugEnabled()) {meLogger.debug("GetUploadStatus request completed, User:" + userName.toString());}
+			
+			httpResponse.addHeader("Cache-Control", "no-cache");
+			httpResponse.setStatus(HttpStatus.OK.value());
+			return this.sessionState.getUploadStatusList();
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in GetUploadStatus", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+	
 
 	//  POST /image
 	@RequestMapping(value = { "/{userName}/image" }, consumes=MediaType.IMAGE_JPEG_VALUE, method = { RequestMethod.POST }, headers={"Accept-Charset=utf-8"}, produces=MediaType.TEXT_PLAIN_VALUE )

@@ -16,6 +16,8 @@ public class CustomSessionState {
 	private int platformId = -1;
 	private int appId = -1;
 	private boolean isRobot = true;
+	private Gallery galleryPreview = null;
+	private String galleryTempKey = "";
 	
 	//private List<UploadStatusList.ImageUploadRef> uploadImageList;
 
@@ -85,6 +87,27 @@ public class CustomSessionState {
 	{
 		this.isRobot = isRobot;
 	}
+	
+	public Gallery getGalleryPreview()
+	{
+		return this.galleryPreview;
+	}
+	
+	public void setGalleryPreview(Gallery galleryPreview)
+	{
+		this.galleryPreview = galleryPreview;
+	}
+	
+	public String getGalleryTempKey()
+	{
+		return this.galleryTempKey;
+	}
+	
+	public void setGalleryTempKey(String value)
+	{
+		this.galleryTempKey = value;
+	}
+	
 	
 	/*
     public List<UploadStatusList.ImageUploadRef> getImageUploadRefList() {

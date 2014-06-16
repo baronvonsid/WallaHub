@@ -447,7 +447,7 @@ public final class ImageUtilityHelper
 		return destinationFile.toString();
 	}
 	
-	public static void SaveReducedSizeImages(long userId, String sourceFilePath, String destinationFilePath, ImageMeta imageMeta, int targetWidth, int targetHeight) throws IOException, InterruptedException, IM4JavaException
+	public static void SaveReducedSizeImages(long userId, String sourceFilePath, String destinationFilePath, int targetWidth, int targetHeight) throws IOException, InterruptedException, IM4JavaException
 	{
 		//Load image into memory, then save of JPEGs of particular sizes.
 		//50, 300, 800.  Square Dimensions.  Cropping required.

@@ -46,7 +46,6 @@
 
 <body id="galleryBody" data-images-fetchsize="576" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
 
-        
         <nav id="pageNavigations">
 
         <%if (showGalleryName || showGalleryDesc) {%>
@@ -78,10 +77,7 @@
 	int thumbHeightWidth = 75;
 	int mainImageWidth = 1920;
 	int mainImageHeight = 1080;
-	String imageMainPath;
-	String imageThumbPath;
-	boolean isPreview = Boolean.parseBoolean(request.getAttribute("isPreview").toString());
-	
+
 	ImageList imageList = (ImageList)request.getAttribute("imageList");
 
 	if (imageList.getImages() != null)
@@ -117,18 +113,10 @@
 					name = current.getDesc();
 					fullNameDesc = current.getDesc();
 				}
-
 				
-				if (isPreview)
-				{
-					imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
-					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
-				}
-				else
-				{
-					imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
-					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
-				}
+				
+				String imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
+				String imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
 				String output = "<a href=\"" + imageMainPath + "\" title=\"" + fullNameDesc + "\"><img src=\"" + imageThumbPath + "\" title=\"" + name + "\"/></a>";
 				%><%=output%><%
 			}

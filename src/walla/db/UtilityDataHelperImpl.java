@@ -206,7 +206,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections],[LastUpdated] FROM [dbo].[GalleryPresentation]";
+			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections],[MaxImagesInSection],[LastUpdated] FROM [dbo].[GalleryPresentation]";
 
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -222,7 +222,8 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				presentation.setJspName(resultset.getString(4));
 				presentation.setCssExtension(resultset.getString(5));
 				presentation.setMaxSections(resultset.getInt(6));
-				presentation.setLastUpdated(new java.util.Date(resultset.getTimestamp(7).getTime()));
+				presentation.setMaxImagesInSection(resultset.getInt(7));
+				presentation.setLastUpdated(new java.util.Date(resultset.getTimestamp(8).getTime()));
 				
 				presentationList.add(presentation);
 			}

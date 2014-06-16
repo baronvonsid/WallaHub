@@ -294,4 +294,44 @@ public class GalleryController {
 			return null;
 		}
 	}
+
+	//  POST /{userName}/gallery/preview
+	@RequestMapping(value = { "/{userName}/gallerypreview" }, method = { RequestMethod.POST }, produces=MediaType.TEXT_PLAIN_VALUE, 
+			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
+	public @ResponseBody String PostGalleryPreview(
+			@RequestBody Gallery galleryPreview,
+			@PathVariable("userName") String userName,
+			HttpServletResponse httpResponse)
+	{
+		try
+		{
+			if (meLogger.isDebugEnabled()) {meLogger.debug("PostGalleryPreview request received, User: " + userName);}
+
+			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
+			{
+				Thread.sleep(3000);
+				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				if (meLogger.isDebugEnabled()) {meLogger.debug("PostGalleryPreview request not authorised, User:" + userName.toString());}
+				return null;
+			}
+	
+			galleryService.ResetGallerySectionForPreview(galleryPreview);
+			
+			if (this.sessionState.getGalleryTempKey() != null && this.sessionState.getGalleryTempKey().length() != 36)
+				this.sessionState.setGalleryTempKey(UserTools.GetComplexString());
+			
+			this.sessionState.setGalleryPreview(galleryPreview);
+
+			if (meLogger.isDebugEnabled()) {meLogger.debug("PostGalleryPreview request completed, User: " + userName);}
+			
+			httpResponse.setStatus(HttpStatus.OK.value());
+			return "<GalleryTempKey>" + this.sessionState.getGalleryTempKey() + "</GalleryTempKey>";
+		}
+		catch (Exception ex) {
+			meLogger.error("Received Exception in PostGalleryPreview", ex);
+			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+
 }

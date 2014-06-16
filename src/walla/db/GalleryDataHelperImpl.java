@@ -678,17 +678,19 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ps.close();
 			
 			//Sections
+			gallery.setSections(new Gallery.Sections());
+			
 			if (gallery.getGroupingType() > 0)
 			{
 				if (gallery.getGroupingType() == 1)
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(C.[Name],'No Grouping')),COALESCE(GS.[DescOverride],COALESCE(C.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(C.[Name],'')),COALESCE(GS.[DescOverride],COALESCE(C.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [Category] C ON GS.[SectionId] = C.[CategoryId] "
 							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],C.[Name]";
 				}
 				else
 				{
-					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(T.[Name],'No Grouping')),COALESCE(GS.[DescOverride],COALESCE(T.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
+					selectSql = "SELECT GS.[SectionId],GS.[ImageCount],COALESCE(GS.[NameOverride],COALESCE(T.[Name],'')),COALESCE(GS.[DescOverride],COALESCE(T.[Description],'')),[Sequence] FROM [dbo].[GallerySection] GS "
 							+ "LEFT OUTER JOIN [TagView] T ON GS.[SectionId] = T.[TagId] "
 							+ "WHERE GS.[GalleryId]= ? ORDER BY GS.[Sequence],T.[Name]";
 				}
@@ -697,7 +699,6 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				ps.setLong(1, gallery.getId());
 				resultset = ps.executeQuery();
 	
-				gallery.setSections(new Gallery.Sections());
 				while (resultset.next())
 				{
 					Gallery.Sections.SectionRef section = new Gallery.Sections.SectionRef();
@@ -719,6 +720,49 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		}
 	}
 
+	public long GetGalleryUserId(String userName, String galleryName, String urlComplex) throws WallaException
+	{
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		
+		try {			
+			conn = dataSource.getConnection();
+
+			String sql = "SELECT G.[UserId] FROM [Gallery] G INNER JOIN [User] U ON G.[UserId] = U.[UserId] " +
+					"WHERE U.[ProfileName] = ? " +
+					"AND G.[Name] = ? AND G.[UrlComplex] = ?";
+			
+			ps = conn.prepareStatement(sql);
+			ps.setString(1, userName);
+			ps.setString(2, galleryName);
+			ps.setString(3, urlComplex);
+			
+			resultset = ps.executeQuery();
+			if (resultset.next())
+			{
+				return resultset.getLong(1);
+			}
+			else
+			{
+				return -1;
+			}
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error("Unexpected SQLException in GetGalleryUserId", sqlEx);
+			throw new WallaException(sqlEx,0);
+		} 
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetGalleryUserId", ex);
+			throw new WallaException(ex, 0);
+		}
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+		}
+	}
+	
 	public GalleryList GetUserGalleryList(long userId) throws WallaException
 	{
 		Connection conn = null;
@@ -731,7 +775,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			String selectSql = "SELECT G.[GalleryId], G.[Name], G.[Description], G.[UrlComplex], G.[TotalImageCount], "
 			+ "G.[SystemOwned], COALESCE(GS.[SectionId],0) AS SectionId, GS.[ImageCount], " 
-			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(GS.[NameOverride],COALESCE(C.[Name],'No Grouping')) WHEN G.[GroupingType] = 2 THEN COALESCE(GS.[NameOverride],COALESCE(T.[Name],'No Grouping')) ELSE '' END AS SectionName, "
+			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(GS.[NameOverride],COALESCE(C.[Name],'')) WHEN G.[GroupingType] = 2 THEN COALESCE(GS.[NameOverride],COALESCE(T.[Name],'')) ELSE '' END AS SectionName, "
 			+ "CASE WHEN G.[GroupingType] = 1 THEN COALESCE(GS.[DescOverride],COALESCE(C.[Description],'')) WHEN G.[GroupingType] = 2 THEN COALESCE(GS.[NameOverride],COALESCE(T.[Description],'')) ELSE '' END AS SectionDesc, "
 			+ "COALESCE(GS.[Sequence],0) AS Sequence "
 			+ "FROM Gallery G "

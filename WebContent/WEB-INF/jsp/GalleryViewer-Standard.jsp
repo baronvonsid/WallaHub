@@ -26,8 +26,8 @@
     <![endif]-->
 
     <link href="../../../../static/css/TemplateExt-Standard.css" rel="stylesheet" />
-    <link href="../../../../static/css/custom-${css}/jquery-ui.min.css" rel="stylesheet" />
-    <link href="../../../../static/css/custom-${css}/ThemeExt-Standard.css" rel="stylesheet" />
+    <link href="../../../../static/css/${css}/jquery-ui.min.css" rel="stylesheet" />
+    <link href="../../../../static/css/${css}/ThemeExt-Standard.css" rel="stylesheet" />
 	<link href="../../../../static/css/magnific-popup/magnific-popup.css" rel="stylesheet" />
 	
     <!-- Browser bar icon (16x16) -->
@@ -42,7 +42,7 @@
 %>
 
 
-<body id="galleryBody" data-images-fetchsize="50" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
+<body id="galleryBody" data-images-fetchsize="50" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}" data-is-preview="${isPreview}">
         
         <nav id="pageNavigations">
 

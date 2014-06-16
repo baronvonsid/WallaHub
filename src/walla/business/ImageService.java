@@ -174,7 +174,6 @@ public class ImageService {
 		}
 	}
 
-	
 	public UploadStatusList GetUploadStatusList(long userId, ImageIdList imageIdToCheck, List<Long> filesReceived, CustomResponse customResponse) throws WallaException
 	{
 		try {
@@ -221,135 +220,7 @@ public class ImageService {
 			return null;
 		}
 	}
-	
-	/*
-	public void UpdateUploadStatusList(long userId, UploadStatusList existingUploadList)
-	{
-		try {
-			meLogger.debug("UpdateUploadStatusList begins. UserId:" + userId);
-			
-			//TODO Check User is logged in with Write permission
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			//First loop removes any cached items which are old
-			//Gets an array of those images which care currently in the cache and we need to check. 
-			long[] imageIdToCheck = new long[existingUploadList.getImageUploadRef().size()];
-			int checkCount = 0;
-			UploadStatusList.ImageUploadRef[] toRemove = new UploadStatusList.ImageUploadRef[existingUploadList.getImageUploadRef().size()];
-			int count = 0;
-			
-			for(UploadStatusList.ImageUploadRef existingImageStatus: existingUploadList.getImageUploadRef())
-			{
-				if (existingImageStatus.getImageStatus().equals(0) || existingImageStatus.getImageStatus().equals(1) || existingImageStatus.getImageStatus().equals(4))
-				{
-					GregorianCalendar calMinusTwoDays = new GregorianCalendar();
-					calMinusTwoDays.add(Calendar.HOUR, -48);
-					
-					if (existingImageStatus.getLastUpdated().toGregorianCalendar().before(calMinusTwoDays))
-					{
-						//Remove old errors or pending. (48 hours)
-						toRemove[count] = existingImageStatus;
-						count++;
-					}
-					else
-					{
-						//Need to be check for existence as may not of made it to the DB.
-						imageIdToCheck[checkCount] = existingImageStatus.getImageId();
-						checkCount++;
-					}
-				}
-			}
-			
-			//Apply removes.
-			for (int ii = 0; ii<count; ii++)
-			{
-				if (toRemove[ii] != null) {existingUploadList.getImageUploadRef().remove(toRemove[ii]);}
-			}
-			
-			
-			//Pending 0, Queued 1, Processing 2, Complete 3, Error 4, Inactive 5
-			UploadStatusList currentUploadList = imageDataHelper.GetCurrentUploads(userId, imageIdToCheck);
 
-			boolean found = false;
-			count = 0;
-			
-			//Firstly find matches in the existing list which might need to be changed or removed.
-			for(UploadStatusList.ImageUploadRef existingImageStatus: existingUploadList.getImageUploadRef())
-			{
-				found = false;
-				for(UploadStatusList.ImageUploadRef currentImageStatus: currentUploadList.getImageUploadRef())
-				{
-					if (currentImageStatus.getImageId().equals(existingImageStatus.getImageId()))
-					{
-						if (currentImageStatus.getImageStatus().equals(3))
-						{
-							//Completed, so remove from list.
-							toRemove[count] = existingImageStatus;
-							count++;
-						}
-						else if (!currentImageStatus.getImageStatus().equals(existingImageStatus.getImageStatus()))
-						{
-							//Changed, so update
-							existingImageStatus.setImageStatus(currentImageStatus.getImageStatus());
-							existingImageStatus.setLastUpdated(currentImageStatus.getLastUpdated());
-						}
-
-						found = true;
-					}
-				}
-				
-
-			}
-
-			//Apply removes.
-			for (int ii = 0; ii<count; ii++)
-			{
-				if (toRemove[ii] != null) {existingUploadList.getImageUploadRef().remove(toRemove[ii]);}
-			}
-			
-			UploadStatusList.ImageUploadRef[] toAdd = new UploadStatusList.ImageUploadRef[currentUploadList.getImageUploadRef().size()];
-			count = 0;
-			
-			//Secondly add any entries from the current list which are not present in the existing list.
-			for(UploadStatusList.ImageUploadRef currentImageStatus: currentUploadList.getImageUploadRef())
-			{
-				found = false;
-				for(UploadStatusList.ImageUploadRef existingImageStatus: existingUploadList.getImageUploadRef())
-				{
-					if (currentImageStatus.getImageId().equals(existingImageStatus.getImageId()))
-					{
-						found = true;
-					}
-				}
-				
-				if (!found)
-				{
-					// Not in existing list, and a valid status,so add it
-					if (currentImageStatus.getImageStatus().equals(1) || currentImageStatus.getImageStatus().equals(2) || currentImageStatus.getImageStatus().equals(4))
-					{
-						toAdd[count] = currentImageStatus;
-						count++;
-					}
-				}
-			}
-			
-			for (int ii = 0; ii<count; ii++)
-			{
-				if (toAdd[ii] != null) {existingUploadList.getImageUploadRef().add(toAdd[ii]);}
-			}
-			
-			meLogger.debug("UpdateUploadStatusList has completed. UserId:" + userId);
-
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process UpdateUploadStatusList");
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces UpdateUploadStatusList", ex);
-		}
-	}
-	*/
-	
 	public long GetImageId(long userId)
 	{
 		try {
@@ -454,11 +325,45 @@ public class ImageService {
 		}
 	}
 	
-	private String GetFilePathIfExists(long userId, String folder, long imageId)
+	public ImageList GetPreviewImageList(long sectionId, int size)
+	{
+		ImageList imagesList = new ImageList();
+		
+		imagesList.setId(sectionId);
+		imagesList.setImageCount(size);
+		imagesList.setImageCursor(0);
+		imagesList.setName("Sample name");
+		imagesList.setDesc("Sample description");
+		imagesList.setSectionId(sectionId);
+		imagesList.setSectionImageCount(size);
+		imagesList.setTotalImageCount(size);
+		imagesList.setType("Gallery");
+		
+		ImageList.Images images = new ImageList.Images();
+		
+		for (int i = 0; i < size; i++)
+		{
+			ImageList.Images.ImageRef image = new ImageList.Images.ImageRef();
+			image.setName("Sample foto " + i);
+			image.setDesc("Sample description");
+			image.setId((long)UserTools.RandInt(1, 10));
+			images.getImageRef().add(image);
+		}
+		
+		imagesList.setImages(images);
+		
+		return imagesList;
+	}
+	
+	private String GetFilePathIfExists(long userId, String sizeFolder, long imageId, boolean isPreview)
 	{
 		/* Check for file exists, return path if present */
-		Path folderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), folder);
-		//Path filePath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), folder, String.valueOf(imageId) + ".*");
+		Path folderPath = null;
+		
+		if (isPreview)
+			folderPath = Paths.get(destinationRoot, "Preview", sizeFolder);
+		else
+			folderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), sizeFolder);
 
 		File file = UserTools.FileExistsNoExt(folderPath.toString(), String.valueOf(imageId));
 		if (file != null)
@@ -468,19 +373,10 @@ public class ImageService {
 		return "";
 	}
 	
+	/*
 	private void ResizeAndSaveFile(long userId, String sourceImagePath, ImageMeta imageMeta, int width, int height, String folder, boolean isMain) throws IOException, InterruptedException, IM4JavaException
 	{
-		if (folder == null)
-			folder = width + "x" + height;
-		
-		Path imageDestinationFolderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), folder);
 
-		File imageDestinationFolder = imageDestinationFolderPath.toFile();
-		if (!imageDestinationFolder.exists())
-			imageDestinationFolder.mkdir();
-		  
-		String imageDestinationPath = Paths.get(imageDestinationFolderPath.toString(), String.valueOf(imageMeta.getId()) + ".jpg").toString();
-		
 		if (isMain)
 		{
 			ImageUtilityHelper.SaveMainImage(userId, sourceImagePath, imageDestinationPath, width, height);
@@ -498,19 +394,70 @@ public class ImageService {
 			ImageUtilityHelper.SaveReducedSizeImages(userId, sourceImagePath, imageDestinationPath, imageMeta, width, height);
 		}
 	}
+	*/
+	
+	private String GetFolderPathOrCreate(long userId, String sizeFolder, boolean isPreview)
+	{
+		Path folderPath = null;
+		if (isPreview)
+			folderPath = Paths.get(destinationRoot, "Preview", sizeFolder);
+		else
+			folderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), sizeFolder);
+		
+		File folder = folderPath.toFile();
+		if (!folder.exists())
+			folder.mkdir();
+		  
+		return folder.getPath();
+	}
+	
+	private String GetFilePathCreateFolder(long userId, String sizeFolder, long imageId, boolean isPreview)
+	{
+		Path folderPath = null;
+		if (isPreview)
+			folderPath = Paths.get(destinationRoot, "Preview", sizeFolder);
+		else
+			folderPath = Paths.get(destinationRoot, "Saved", String.valueOf(userId), sizeFolder);
+		
+		File folder = folderPath.toFile();
+		if (!folder.exists())
+			folder.mkdir();
+		  
+		return Paths.get(folderPath.toString(), String.valueOf(imageId) + ".jpg").toString();
+	}
+	
+	private void ResizeAndSaveFile(long userId, String sourceImagePath, String destinationImagePath, int width, int height, boolean isMain) throws IOException, InterruptedException, IM4JavaException
+	{
+		if (isMain)
+		{
+			ImageUtilityHelper.SaveMainImage(userId, sourceImagePath, destinationImagePath, width, height);
+			//Check if switch is needed.
+
+			if (ImageUtilityHelper.CheckForPortrait(destinationImagePath))
+			{
+				//Resize with portrait dimensions.
+				ImageUtilityHelper.DeleteImage(destinationImagePath);
+				ImageUtilityHelper.SaveMainImage(userId, sourceImagePath, destinationImagePath, height, width);
+			}
+		}
+		else
+		{
+			ImageUtilityHelper.SaveReducedSizeImages(userId, sourceImagePath, destinationImagePath, width, height);
+		}
+	}
 	
 	public File GetOriginalImageFile(long userId, long imageId, CustomResponse customResponse)
 	{
 		try
 		{
-				String path = GetFilePathIfExists(userId,"Original", imageId);
-				if (path.isEmpty())
-				{
-					customResponse.setMessage("Original image file could not be retreived.  ImageId:" + imageId);
-					customResponse.setResponseCode(HttpStatus.GONE.value());
-				}
-				customResponse.setResponseCode(HttpStatus.OK.value());
-				return new File(path);
+			String path = GetFilePathIfExists(userId, "Original", imageId, false);
+			if (path.isEmpty())
+			{
+				customResponse.setMessage("Original image file could not be retreived.  ImageId:" + imageId);
+				customResponse.setResponseCode(HttpStatus.GONE.value());
+			}
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return new File(path);
 		}
 		catch (Exception ex)
 		{
@@ -520,31 +467,23 @@ public class ImageService {
 		}
 	}
 	
-	public BufferedImage GetImageFile(long userId, long imageId, int width, int height, boolean mainCopy, CustomResponse customResponse)
+	public BufferedImage GetScaledImageFile(long userId, long imageId, int width, int height, boolean isPreview, CustomResponse customResponse)
 	{
 		try
 		{
-			if (mainCopy)
+			String sourceFile;
+			String destFile;
+			/*
+			ImageMeta imageMeta = null;
+			if (isPreview)
 			{
-				String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
-				if (imageFilePath.isEmpty())
-				{
-					ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
-					if (imageMeta == null)
-					{
-						String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
-						throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
-					}
-					
-					//Master file not present, so create a new one.
-					ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
-					imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
-				}
-				
-				//No resize needed.
-				customResponse.setResponseCode(HttpStatus.OK.value());
-				return ImageIO.read(new File(imageFilePath));
+				imageMeta = new ImageMeta();
+				imageMeta.setId(imageId);
+				imageMeta.setWidth(1920);
+				imageMeta.setHeight(1080);
 			}
+			*/
+			
 			
 			//Check for aspect ratio, supported ratio is 1.0 or 1.77
 			double requestAspectRatio = (double)width / (double)height;
@@ -602,36 +541,43 @@ public class ImageService {
 					}
 					
 					//Check for file existing
-					String imageFilePath = GetFilePathIfExists(userId, folder, imageId);
+					String imageFilePath = GetFilePathIfExists(userId, folder, imageId,isPreview);
 					if (imageFilePath.isEmpty())
 					{
-						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
-						if (imageMeta == null)
-						{
-							String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
-							throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
-						}
+						//if (!isPreview)
+						//	imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
+						
+						//if (imageMeta == null)
+						//{
+						//	String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
+						//	throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+						//}
 						
 						//File not present, so create it.
-						String masterImageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+						String masterImageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId, isPreview);
 						if (masterImageFilePath.isEmpty())
 						{
 							//Master file not present, so create a new one.
-							String originalFilePath = GetFilePathIfExists(userId, "Original", imageMeta.getId());
+							String originalFilePath = GetFilePathIfExists(userId, "Original", imageId, isPreview);
 							if (originalFilePath.isEmpty())
 							{
 								String error = "GetImageFile didn't find a valid original Image object to process. UserId:" + userId + " ImageId:" + imageId;
 								throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
 							}
 							
-							ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
-							masterImageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+							destFile = GetFilePathCreateFolder(userId, "MainCopy", imageId, isPreview);
+							ResizeAndSaveFile(userId, originalFilePath, destFile, 1920, 1080, true);
+							
+							masterImageFilePath = destFile;
 						}
 
 						int newWidth = Integer.valueOf(folder.substring(0, folder.indexOf("x")));
 						int newHeight = Integer.valueOf(folder.substring(folder.indexOf("x")+1));
-						ResizeAndSaveFile(userId, masterImageFilePath, imageMeta, newWidth, newHeight, null, false);
-						imageFilePath = GetFilePathIfExists(userId, folder, imageId);
+						
+						destFile = GetFilePathCreateFolder(userId, newWidth + "x" + newHeight, imageId, isPreview);
+						ResizeAndSaveFile(userId, masterImageFilePath, destFile, newWidth, newHeight, false);
+						
+						imageFilePath = GetFilePathIfExists(userId, folder, imageId, isPreview);
 					}
 					
 					if (doResize)
@@ -665,19 +611,21 @@ public class ImageService {
 						throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.BAD_REQUEST.value());
 					}
 					
-					String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+					String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId, isPreview);
 					if (imageFilePath.isEmpty())
 					{
-						ImageMeta imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
-						if (imageMeta == null)
+						//Master file not present, so create a new one.
+						String originalFilePath = GetFilePathIfExists(userId, "Original", imageId, isPreview);
+						if (originalFilePath.isEmpty())
 						{
-							String error = "GetImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
+							String error = "GetImageFile didn't find a valid original Image object to process. UserId:" + userId + " ImageId:" + imageId;
 							throw new WallaException("ImageService", "GetImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
 						}
 						
-						//Master file not present, so create a new one.
-						ResizeAndSaveFile(userId, GetFilePathIfExists(userId, "Original", imageMeta.getId()), imageMeta, 1920, 1080, "MainCopy", true);
-						imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId);
+						destFile = GetFilePathCreateFolder(userId, "MainCopy", imageId, isPreview);
+						ResizeAndSaveFile(userId, originalFilePath, destFile, 1920, 1080, true);
+						
+						imageFilePath = destFile;
 					}
 					
 					if (height < 1080)
@@ -724,7 +672,59 @@ public class ImageService {
 		
 	}
 	
-	public BufferedImage GetAppImageFile(long userId, String imageRef, int width, int height, CustomResponse customResponse)
+	public BufferedImage GetMainCopyImageFile(long userId, long imageId, boolean isPreview, CustomResponse customResponse)
+	{
+		try
+		{
+			/*
+			String storeFolder = "Saved";
+			ImageMeta imageMeta = null;
+			
+			if (isPreview)
+			{
+				storeFolder = "Preview";
+				imageMeta = new ImageMeta();
+				imageMeta.setId(imageId);
+				imageMeta.setWidth(1920);
+				imageMeta.setHeight(1080);
+			}
+			*/
+			
+			String imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId, isPreview);
+			
+			if (imageFilePath.isEmpty())
+			{
+				/*
+				if (!isPreview)
+					imageMeta = imageDataHelper.GetImageMeta(userId, imageId);
+				
+				if (imageMeta == null)
+				{
+					String error = "GetMainCopyImageFile didn't return a valid Image object. UserId:" + userId + " ImageId:" + imageId;
+					throw new WallaException("ImageService", "GetMainCopyImageFile", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+				}
+				*/
+				
+				//Master file not present, so create a new one.
+				String sourceFolder = GetFilePathIfExists(userId, "Original", imageId, isPreview);
+				String destFolder = GetFilePathCreateFolder(userId, "MainCopy", imageId, isPreview);
+				
+				ResizeAndSaveFile(userId, sourceFolder, destFolder, 1920, 1080, true);
+				imageFilePath = GetFilePathIfExists(userId, "MainCopy", imageId, isPreview);
+			}
+			
+			//No resize needed.
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return ImageIO.read(new File(imageFilePath));
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetMainCopyImageFile",ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
+		}
+	}
+	
+	public BufferedImage GetAppImageFile(String imageRef, int width, int height, CustomResponse customResponse)
 	{
 		try
 		{
@@ -753,6 +753,7 @@ public class ImageService {
 		}
 		
 	}
+
 	
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
@@ -788,38 +789,26 @@ public class ImageService {
 				String error = "SetupNewImage didn't return an Image object with the correct status. UserId:" + userId + " ImageId:" + imageId + " Status:" + imageMeta.getStatus();
 				throw new WallaException("ImageService", "SetupNewImage", error, 0);
 			}
-			
 
-			
-			
 			/**************************************************************************/
 			/****************** Enrich with Exif & Save image copies ******************/
 			/**************************************************************************/
 			
-			Path userOriginalFolderPath = Paths.get(destinationRoot, "Saved", Long.toString(userId), "Original");
-			File userOriginalFolder = userOriginalFolderPath.toFile();
-    		if (!userOriginalFolder.exists())
-    		{
-    			userOriginalFolder.mkdirs();
-    		}
-    			
-			//Archive original image
-    		String originalImagePath = ImageUtilityHelper.SaveOriginal(userId, uploadedFile.getPath(), userOriginalFolderPath.toString(), imageId, imageMeta.getFormat());
-    		
-			//Make one initial copy, to drive subsequent resizing and also to orient correctly.
-    		File userMainImageFolder = Paths.get(destinationRoot, "Saved", Long.toString(userId), "MainCopy").toFile();
-    		if (!userMainImageFolder.exists())
-    		{
-    			userMainImageFolder.mkdirs();
-    		}
-    		ResizeAndSaveFile(userId, uploadedFile.getPath(), imageMeta, 1920, 1080, "MainCopy", true);
+			String userOriginalFolderPath = GetFolderPathOrCreate(userId, "Original", false);
 
-			String mainImagePath = GetFilePathIfExists(userId, "MainCopy", imageId);
-			if (mainImagePath.isEmpty())
-			{
-				String error = "Unexpected error retrieving a resized image in the folder: MainCopy.  ImageId:" + imageId;
-				throw new WallaException("ImageService", "SetupNewImage", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
-			}
+			//Archive original image
+    		String originalImagePath = ImageUtilityHelper.SaveOriginal(userId, uploadedFile.getPath(), userOriginalFolderPath, imageId, imageMeta.getFormat());
+    		
+    		//Make one initial copy, to drive subsequent resizing and also to orient correctly.
+			String mainImagePath = GetFilePathCreateFolder(userId, "MainCopy", imageId, false);
+			ResizeAndSaveFile(userId, originalImagePath, mainImagePath, 1920, 1080, true);
+
+			//String mainImagePath = GetFilePathIfExists(userId, "MainCopy", imageId, false);
+			//if (mainImagePath.isEmpty())
+			//{
+			//	String error = "Unexpected error retrieving a resized image in the folder: MainCopy.  ImageId:" + imageId;
+			//	throw new WallaException("ImageService", "SetupNewImage", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
+			//}
     				
 			//Load image meta into memory and enrich properties.
 			//TODO switch to wired class.
@@ -838,10 +827,14 @@ public class ImageService {
 	       	 Surface2 1920x1080 - 1.77
 	       	 */
 			
-			//ResizeAndSaveFile(userId,mainImagePath, imageMeta, 20, 20, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 75, 75, null, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 300, 300, null, false);
-			ResizeAndSaveFile(userId,mainImagePath, imageMeta, 800, 800, null, false);
+			String destFile = GetFilePathCreateFolder(userId, "75x75", imageId, false);
+			ResizeAndSaveFile(userId,mainImagePath, destFile, 75, 75, false);
+			
+			destFile = GetFilePathCreateFolder(userId, "300x300", imageId, false);
+			ResizeAndSaveFile(userId,mainImagePath, destFile, 300, 300, false);
+			
+			destFile = GetFilePathCreateFolder(userId, "800x800", imageId, false);
+			ResizeAndSaveFile(userId,mainImagePath, destFile, 800, 800, false);
 
             //TODO Delete original uploaded image.
 			ImageUtilityHelper.DeleteImage(uploadedFile.getPath());

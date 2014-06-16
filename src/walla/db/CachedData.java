@@ -151,6 +151,33 @@ public class CachedData {
 		}
 	}
 	
+	public Style GetStyle(int styleId) throws WallaException
+	{
+		try
+		{
+			CheckAndUpdateCache();
+			
+			for (Iterator<Style> iterater = styles.iterator(); iterater.hasNext();)
+			{
+				Style current = (Style)iterater.next();
+
+				if (current.getStyleId() == styleId)
+				{
+					return current;
+				}
+			}
+			
+			//Presentation not found so raise an exception
+			String error = "Style is not valid.  StyleId:" + styleId;
+			meLogger.error(error);
+			throw new WallaException(this.getClass().getName(), "GetStyle", error, 0);
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetStyle", ex);
+			throw new WallaException(ex, 0);
+		}
+	}
+	
 	public List<Presentation> GetPresentationList() throws WallaException
 	{
 		try
@@ -165,6 +192,33 @@ public class CachedData {
 		}
 		catch (Exception ex) {
 			meLogger.error("Unexpected Exception in GetPresentationList", ex);
+			throw new WallaException(ex, 0);
+		}
+	}
+	
+	public Presentation GetPresentation(int presentationId) throws WallaException
+	{
+		try
+		{
+			CheckAndUpdateCache();
+			
+			for (Iterator<Presentation> iterater = presentations.iterator(); iterater.hasNext();)
+			{
+				Presentation current = (Presentation)iterater.next();
+
+				if (current.getPresentationId() == presentationId)
+				{
+					return current;
+				}
+			}
+			
+			//Presentation not found so raise an exception
+			String error = "Presentation is not valid.  PresentationId:" + presentationId;
+			meLogger.error(error);
+			throw new WallaException(this.getClass().getName(), "GetPresentation", error, 0);
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected Exception in GetPresentation", ex);
 			throw new WallaException(ex, 0);
 		}
 	}

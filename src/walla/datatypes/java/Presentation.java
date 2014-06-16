@@ -10,6 +10,7 @@ public class Presentation {
 	private String jspName;
 	private String cssExtension;
 	private int maxSections;
+	private int maxImagesInSection;
 	private Date lastUpdated;
 	
 	public Presentation() {
@@ -74,6 +75,16 @@ public class Presentation {
 	public int getMaxSections()
 	{
 		return this.maxSections;
+	}
+	
+	public void setMaxImagesInSection(int maxImagesInSection)
+	{
+		this.maxImagesInSection = maxImagesInSection;
+	}
+	
+	public int getMaxImagesInSection()
+	{
+		return this.maxImagesInSection;
 	}
 	
 	public void setLastUpdated(Date lastUpdated)

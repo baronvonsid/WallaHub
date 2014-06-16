@@ -141,6 +141,55 @@ public class GalleryService {
 		}
 	}
 	
+	public long GetUserForGallery(String userName, String galleryName, String urlComplex)
+	{
+		try
+		{
+			meLogger.debug("GetUserForGallery() begins. userName:" + userName + " GalleryName:" + galleryName);
+			
+			if (galleryName.length() > 30 || urlComplex.length() > 36 || userName.length() > 30)
+			{
+				//Special validation to reduce chance of SQL pass through.
+				String error = "GetUserForGallery was passed an invalid argument. UserName: " + userName + " GalleryName:" + galleryName + " UrlComplex:" + urlComplex;
+				meLogger.error(error);
+				throw new WallaException("GalleryService", "GetGalleryMeta", error, HttpStatus.UNAUTHORIZED.value()); 
+			}
+			
+			meLogger.debug("GetUserForGallery() begins. userName:" + userName + " GalleryName:" + galleryName);
+			
+			return galleryDataHelper.GetGalleryUserId(userName, galleryName, urlComplex);
+		}
+		catch (WallaException wallaEx) {
+			meLogger.error("Unexpected error when trying to process GetUserForGallery", wallaEx);
+			return -1;
+		}
+		catch (Exception ex) {
+			meLogger.error("Unexpected error when trying to process GetUserForGallery",ex);
+			return -1;
+		}
+	}
+	
+	public void ResetGallerySectionForPreview(Gallery gallery)
+	{
+		meLogger.debug("ResetGallerySectionForPreview() begins.");
+		
+		if (gallery.getSections() != null)
+		{
+			if (gallery.getSections().getSectionRef().size() > 0)
+			{
+				for (int i = 0; i < gallery.getSections().getSectionRef().size(); i++)
+				{
+					Gallery.Sections.SectionRef current = gallery.getSections().getSectionRef().get(i);
+					current.setId((long)(i+1));
+				}
+				
+				//TODO sort these bad boys by sequence. 
+			}
+		}
+		
+		meLogger.debug("ResetGallerySectionForPreview() finishes.");
+	}
+	
 	public Gallery GetGalleryMeta(long userId, String galleryName, CustomResponse customResponse)
 	{
 		try {
@@ -148,6 +197,7 @@ public class GalleryService {
 			//HttpStatus.UNAUTHORIZED.value()
 			
 			meLogger.debug("GetGalleryMeta() begins. UserId:" + userId + " GalleryName:" + galleryName);
+	
 			
 			//Get gallery list for response.
 			Gallery gallery = galleryDataHelper.GetGalleryMeta(userId, galleryName);
@@ -285,6 +335,7 @@ public class GalleryService {
 				ref.setJspName(current.getJspName());
 				ref.setCssExtension(current.getCssExtension());
 				ref.setMaxSections(current.getMaxSections());
+				ref.setMaxImagesInSection(current.getMaxImagesInSection());
 				
 				if (current.getLastUpdated().after(latestDate) || current.getLastUpdated().equals(latestDate))
 				{
@@ -366,6 +417,15 @@ public class GalleryService {
 		}
 	}
 	
+	public Presentation GetPresentation(int presentationId) throws WallaException
+	{
+		return cachedData.GetPresentation(presentationId);
+	}
+	
+	public Style GetStyle(int styleId) throws WallaException
+	{
+		return cachedData.GetStyle(styleId);
+	}
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
 	//*************************************************************************************************************

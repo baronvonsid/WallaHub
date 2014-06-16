@@ -16,6 +16,7 @@
                     <attribute type="string" name="jspName" />
                     <attribute type="string" name="cssExtension" />
                     <attribute type="int" name="maxSections" />
+                    <attribute type="int" name="maxImagesInSection" />
               </complexType>
               </element>
             </sequence>
