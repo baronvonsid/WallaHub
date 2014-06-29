@@ -400,35 +400,7 @@ public class ImageController {
 			return null;
 		}
 	}
-	
-	private void SaveFileToTemp(long userId, long imageId, InputStream inputStream)
-	{
-        try {
-            if (inputStream != null) 
-            {
-        		Path uploadedFilePath = Paths.get(destinationRoot, "Que", String.valueOf(imageId) + "." + Long.toString(userId));
-            	
-            	File file = uploadedFilePath.toFile();
-                FileOutputStream outputStream = new FileOutputStream(file);
- 
-                byte[] buffer = new byte[1024];
-                int bytesRead;
- 
-                while ((bytesRead = inputStream.read(buffer)) > 0) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
- 
-                outputStream.flush();
-                outputStream.close();
-            }
- 
-        } catch (FileNotFoundException e) {
-			meLogger.error("Received FileNotFoundException in SaveFileToDisk", e);
-        } catch (IOException e) {
-        	meLogger.error("Received IOException in SaveFileToDisk", e);
-        }
-	}
-	
+
 	//  GET /image/image/uploadstatus
 	//  None = 0, FileReceived = 1, AwaitingProcessed = 2, BeingProcessed = 3, Complete = 4, Inactive = 5
 	//  No client caching.  Check client side version against db timestamp.
@@ -741,6 +713,39 @@ public class ImageController {
 		}
 	}
 	
+	
+	//***************************************
+	//***************************************
+	private void SaveFileToTemp(long userId, long imageId, InputStream inputStream)
+	{
+        try {
+            if (inputStream != null) 
+            {
+        		Path uploadedFilePath = Paths.get(destinationRoot, "Que", String.valueOf(imageId) + "." + Long.toString(userId));
+            	
+            	File file = uploadedFilePath.toFile();
+                FileOutputStream outputStream = new FileOutputStream(file);
+ 
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+ 
+                while ((bytesRead = inputStream.read(buffer)) > 0) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+ 
+                outputStream.flush();
+                outputStream.close();
+            }
+ 
+        } catch (FileNotFoundException e) {
+			meLogger.error("Received FileNotFoundException in SaveFileToDisk", e);
+        } catch (IOException e) {
+        	meLogger.error("Received IOException in SaveFileToDisk", e);
+        }
+	}
+
+
+
 }
 
 

@@ -337,6 +337,12 @@ public class GalleryService {
 				ref.setMaxSections(current.getMaxSections());
 				ref.setMaxImagesInSection(current.getMaxImagesInSection());
 				
+				ref.setOptionGalleryName(current.getOptionGalleryName());
+				ref.setOptionGalleryDesc(current.getOptionGalleryDesc());
+				ref.setOptionImageName(current.getOptionImageName());
+				ref.setOptionImageDesc(current.getOptionImageDesc());
+				ref.setOptionGroupingDesc(current.getOptionGroupingDesc());
+				
 				if (current.getLastUpdated().after(latestDate) || current.getLastUpdated().equals(latestDate))
 				{
 					latestDate = current.getLastUpdated();

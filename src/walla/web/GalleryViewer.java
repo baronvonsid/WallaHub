@@ -180,11 +180,6 @@ public class GalleryViewer {
 			CustomResponse customResponse = new CustomResponse();
 			
 			ImageList imageList = imageService.GetImageList(userId, "gallery", galleryName, sectionId, imageCursor, size, clientVersionTimestamp, customResponse);
-			//TODO change class based on gallery presentation settings.
-			boolean noName = true;
-			
-			//Get image size from cache object.  Used for image URL construction.
-			String imageSize = "250";
 			
 			httpResponse.addHeader("Cache-Control", "no-cache");
 			httpResponse.setStatus(customResponse.getResponseCode());
@@ -306,6 +301,7 @@ public class GalleryViewer {
 		
 		Presentation presentation = galleryService.GetPresentation(gallery.getPresentationId());
 		model.addAttribute("jsp", presentation.getJspName());
+		model.addAttribute("imageSize", presentation.getThumbWidth());
 		
 		model.addAttribute("groupingType", gallery.getGroupingType()); /* 0-None, 1-category, 2-tag */
 		
@@ -354,13 +350,13 @@ public class GalleryViewer {
 		return presentation.getJspName();
 	}
 	
-	private void WriteOutImageList(String userName, PrintWriter out, Gallery gallery, ImageList imageList, boolean isPreview)
+	private void WriteOutImageList(String userName, PrintWriter out, Gallery gallery, ImageList imageList, boolean isPreview) throws WallaException
 	{
 	    int lastImage = imageList.getImageCount() + imageList.getImageCursor();
 	    
-		//TODO Get image size from cache object.  Used for image URL construction.
-		String imageSize = "250";
-	
+		Presentation presentation = galleryService.GetPresentation(gallery.getPresentationId());
+		int imageSize = presentation.getThumbWidth();
+		
 	    out.println("<section id=\"imagesPane\""
 	    		+ " class=\"ImagesPaneStyle\""
 	    		+ " data-section-id=\"" + imageList.getSectionId() + "\"" 
@@ -398,12 +394,12 @@ public class GalleryViewer {
 						fullNameDesc = current.getDesc();
 					}
 					
-					if (name == null);
+					if (name == null)
 						name = "";
 						
-					if (fullNameDesc == null);
+					if (fullNameDesc == null)
 						fullNameDesc = "";
-						
+					
 					if (isPreview)
 					{
 						imageUrl = "../../../ws/" + userName + "/imagepreview/" + current.getId() + "/" + 1920 + "/" + 1080 + "/";
@@ -414,23 +410,36 @@ public class GalleryViewer {
 						imageUrl = "../../../ws/" + userName + "/image/" + current.getId() + "/" + 1920 + "/" + 1080 + "/";
 						thumbUrl = "../../../ws/" + userName + "/image/" + current.getId() + "/" + imageSize + "/" + imageSize + "/";
 					}
-
-					out.println("<article class=\"" + (name.length() > 0 ? "ImagesArticleNoNameStyle" : "ImagesArticleStyle") + "\""
-							+ "id=\"imageId" + current.getId() + "\""
-							+ "data-image-id=\"" + current.getId() + "\">");
-					 
-					out.println("<a class=\"image-popup-no-margins\" href=\"" + imageUrl + "\" title=\"" + fullNameDesc + "\">");
-					out.println("<img class=\"thumbStyle\" title=\"" + name + "\""
-							+ " src=\"" + thumbUrl + "\"/>");
-					out.println("</a>");
 					
-					/*
-					if (!noName)
+					StringBuilder output = new StringBuilder();
+					
+					if (gallery.isShowImageName() || gallery.isShowGalleryDesc())
 					{
-						out.println("<div class=\"ImagesArticleStyle\"><span>" + current.getName() + "</span></div>");
+						int addHeight = 20;
+						
+						if (gallery.isShowImageName() || gallery.isShowGalleryDesc())
+							addHeight = 40;
+						
+						output.append("<article class=\"ImagesArticleStyle\" style=\"width:" + imageSize + "px;height:" + (imageSize + addHeight) + "px;\" ");
+						output.append("id=\"imageId" + current.getId() + "\" data-image-id=\"" + current.getId() + "\">");
+
+						output.append("<a class=\"image-popup-no-margins\" href=\"" + imageUrl + "\" title=\"" + name + "\">");
+						output.append("<img class=\"thumbStyle\" title=\"" + name + "\" src=\"" + thumbUrl + "\"/></a>");
+						
+						output.append("<div class=\"ImagesArticleStyle\" style=\"width:" + imageSize + "px;height:" + addHeight + "px;\"><span>" + fullNameDesc + "</span></div></article>");
 					}
-					*/
-					out.println("</article>");
+					else
+					{
+						output.append("<article class=\"ImagesArticleNoNameStyle\" ");
+						output.append("id=\"imageId" + current.getId() + "\" data-image-id=\"" + current.getId() + "\">");
+
+						output.append("<a class=\"image-popup-no-margins\" href=\"" + imageUrl + "\" title=\"" + name + "\">");
+						output.append("<img class=\"thumbStyle\" title=\"" + name + "\" src=\"" + thumbUrl + "\"/></a>");
+					}
+
+					
+					
+					out.println(output.toString());
 
 				}
 			}

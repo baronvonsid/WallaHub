@@ -42,9 +42,13 @@
 	boolean showGalleryDesc = Boolean.parseBoolean(request.getAttribute("showGalleryDesc").toString());
 	boolean showImageName = Boolean.parseBoolean(request.getAttribute("showImageName").toString());
 	boolean showImageDesc = Boolean.parseBoolean(request.getAttribute("showImageDesc").toString());
+	
+	boolean isPreview = Boolean.parseBoolean(request.getAttribute("isPreview").toString());
+	int imageSize = Integer.parseInt(request.getAttribute("imageSize").toString());
+	ImageList imageList = (ImageList)request.getAttribute("imageList");
 %>
 
-<body id="galleryBody" data-images-fetchsize="576" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
+<body id="galleryBody" data-images-fetchsize="500" data-groupings-type="${groupingType}" data-total-image-count="${totalImageCount}">
 
         
         <nav id="pageNavigations">
@@ -75,14 +79,12 @@
 	<div id="links" class="links">
 	
 <% 
-	int thumbHeightWidth = 75;
+	//int thumbHeightWidth = 75;
 	int mainImageWidth = 1920;
 	int mainImageHeight = 1080;
 	String imageMainPath;
 	String imageThumbPath;
-	boolean isPreview = Boolean.parseBoolean(request.getAttribute("isPreview").toString());
-	
-	ImageList imageList = (ImageList)request.getAttribute("imageList");
+
 
 	if (imageList.getImages() != null)
 	{
@@ -122,12 +124,12 @@
 				if (isPreview)
 				{
 					imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
-					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
+					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/imagepreview/" + current.getId() + "/" + imageSize + "/" + imageSize + "/";
 				}
 				else
 				{
 					imageMainPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + mainImageWidth + "/" + mainImageHeight + "/";
-					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + thumbHeightWidth + "/" + thumbHeightWidth + "/";
+					imageThumbPath = "../../../ws/" + (String)request.getAttribute("userName") + "/image/" + current.getId() + "/" + imageSize + "/" + imageSize + "/";
 				}
 				String output = "<a href=\"" + imageMainPath + "\" title=\"" + fullNameDesc + "\"><img src=\"" + imageThumbPath + "\" title=\"" + name + "\"/></a>";
 				%><%=output%><%

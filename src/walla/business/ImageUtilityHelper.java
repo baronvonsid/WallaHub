@@ -59,6 +59,7 @@ public final class ImageUtilityHelper
 			}
 			else
 			{
+				imageMeta.setTakenDate(imageMeta.getTakenDateFile());
 				return "OK";
 			}
 		}

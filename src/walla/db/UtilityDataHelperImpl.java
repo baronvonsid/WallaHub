@@ -206,7 +206,9 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections],[MaxImagesInSection],[LastUpdated] FROM [dbo].[GalleryPresentation]";
+			String selectSql = "SELECT [PresentationId],[Name],[Description],[JspName],[CssExtension],[MaxSections],[MaxImagesInSection]," +
+					"[ThumbWidth],[ThumbHeight],[OptionGalleryName],[OptionGalleryDesc],[OptionImageName],[OptionImageDesc],[OptionGroupingDesc]," +
+					"[LastUpdated] FROM [dbo].[GalleryPresentation]";
 
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
@@ -223,7 +225,17 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				presentation.setCssExtension(resultset.getString(5));
 				presentation.setMaxSections(resultset.getInt(6));
 				presentation.setMaxImagesInSection(resultset.getInt(7));
-				presentation.setLastUpdated(new java.util.Date(resultset.getTimestamp(8).getTime()));
+				
+				presentation.setThumbWidth(resultset.getInt(8));
+				presentation.setThumbHeight(resultset.getInt(9));
+				
+				presentation.setOptionGalleryName(resultset.getBoolean(10));
+				presentation.setOptionGalleryDesc(resultset.getBoolean(11));
+				presentation.setOptionImageName(resultset.getBoolean(12));
+				presentation.setOptionImageDesc(resultset.getBoolean(13));
+				presentation.setOptionGroupingDesc(resultset.getBoolean(14));
+				
+				presentation.setLastUpdated(new java.util.Date(resultset.getTimestamp(15).getTime()));
 				
 				presentationList.add(presentation);
 			}

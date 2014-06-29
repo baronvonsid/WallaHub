@@ -25,7 +25,7 @@ targetNamespace="http://ws.fotowalla.com/ImageMeta"
 	    <element type="dateTime" name="TakenDate"/>
 	    <element type="boolean" name="TakenDateSet"/>
 	    <element type="dateTime" name="TakenDateFile"/>
-	    <element type="dateTime" name="TakenDateMeta"/>
+	    <element type="dateTime" name="TakenDateMeta" />
 	    <element type="dateTime" name="UploadDate"/>
 	    <element type="string" name="UdfChar1"/>
 	    <element type="string" name="UdfChar2"/>

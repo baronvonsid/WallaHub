@@ -964,7 +964,6 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				ps.setInt(3, imageCursor + imageCount);
 			}
 			
-
 			//ps.setString(5, "[Name]"); //Sort
 			
 			resultset = ps.executeQuery();
@@ -975,8 +974,8 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			{
 				ImageList.Images.ImageRef newImageRef = new ImageList.Images.ImageRef(); 
 				newImageRef.setId(resultset.getLong(2));
-				newImageRef.setName(resultset.getString(3));
-				newImageRef.setDesc(resultset.getString(4));
+				newImageRef.setName(resultset.getString(3) == null ? "" : resultset.getString(3));
+				newImageRef.setDesc(resultset.getString(4) == null ? "" : resultset.getString(4));
 				
 				oldGreg.setTime(resultset.getTimestamp(5));
 				XMLGregorianCalendar xmlOldGregUpload = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
@@ -1161,39 +1160,50 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			if (requestGallery.getGroupingType() == 1)
+			if (requestGallery.getSelectionType() == 0)
 			{
 				//Category.
-				ps = conn.prepareStatement(categorySql);
-				for (Iterator<Gallery.Categories.CategoryRef> categoryIterater = requestGallery.getCategories().getCategoryRef().iterator(); categoryIterater.hasNext();)
+				if (requestGallery.getCategories() != null)
 				{
-					Gallery.Categories.CategoryRef currentCategoryRef = (Gallery.Categories.CategoryRef)categoryIterater.next();
-					
-					ps.setLong(1, tempGalleryId);	  
-					ps.setLong(2, currentCategoryRef.getCategoryId());
-					ps.setBoolean(3, currentCategoryRef.isRecursive());
-					ps.setLong(4, userId);	
-
-					ps.addBatch();
-					controlCount++;
+					ps = conn.prepareStatement(categorySql);
+					for (Iterator<Gallery.Categories.CategoryRef> categoryIterater = requestGallery.getCategories().getCategoryRef().iterator(); categoryIterater.hasNext();)
+					{
+						Gallery.Categories.CategoryRef currentCategoryRef = (Gallery.Categories.CategoryRef)categoryIterater.next();
+						
+						ps.setLong(1, tempGalleryId);	  
+						ps.setLong(2, currentCategoryRef.getCategoryId());
+						ps.setBoolean(3, currentCategoryRef.isRecursive());
+						ps.setLong(4, userId);	
+	
+						ps.addBatch();
+						controlCount++;
+					}
 				}
 			}
 			else
 			{
-				ps = conn.prepareStatement(tagSql);
-				for (Iterator<Gallery.Tags.TagRef> tagIterater = requestGallery.getTags().getTagRef().iterator(); tagIterater.hasNext();)
+				if (requestGallery.getTags().getTagRef() != null)
 				{
-					Gallery.Tags.TagRef currentTagRef = (Gallery.Tags.TagRef)tagIterater.next();
-					
-					ps.setLong(1, tempGalleryId);	  
-					ps.setLong(2, currentTagRef.getTagId());
-					ps.setLong(3, userId);	
-
-					ps.addBatch();
-					controlCount++;
+					ps = conn.prepareStatement(tagSql);
+					for (Iterator<Gallery.Tags.TagRef> tagIterater = requestGallery.getTags().getTagRef().iterator(); tagIterater.hasNext();)
+					{
+						Gallery.Tags.TagRef currentTagRef = (Gallery.Tags.TagRef)tagIterater.next();
+						if (!currentTagRef.isExclude())
+						{
+							ps.setLong(1, tempGalleryId);	  
+							ps.setLong(2, currentTagRef.getTagId());
+							ps.setLong(3, userId);	
+		
+							ps.addBatch();
+							controlCount++;
+						}
+					}
 				}
 			}
 
+			if (controlCount == 0)
+				return responseGallery;
+			
 			//Perform updates.
 			if (controlCount != ps.executeBatch().length)
 			{
