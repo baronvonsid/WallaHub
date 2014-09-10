@@ -183,13 +183,13 @@ public class ImageService {
 			
 			for (int i = 0; i < filesReceived.size(); i++)
 			{
+				//Check image now being returned has been correctly removed from the session files received list.
 				boolean found = false;
 				for (int ii = 0; ii < currentUploadList.getImageUploadRef().size(); ii++)
 				{
 					if (filesReceived.get(i) == currentUploadList.getImageUploadRef().get(ii).getImageId())
 					{
 						found = true;
-						
 					}
 				}
 				

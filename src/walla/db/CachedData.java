@@ -2,6 +2,7 @@ package walla.db;
 
 import walla.datatypes.auto.*;
 import walla.datatypes.java.*;
+import walla.utils.UserTools;
 import walla.utils.WallaException;
 
 import java.util.Calendar;
@@ -10,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.log4j.Logger;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -29,34 +31,38 @@ public class CachedData {
 		cal.add(Calendar.MONTH, -1);
 		cacheUpdateTime.setTime(cal.getTimeInMillis());
 		
-		meLogger.debug("CachedData object instantiated with the timestamp:" + cacheUpdateTime.toGMTString());
+		if (meLogger.isDebugEnabled()) { meLogger.debug("CachedData object instantiated with the timestamp:" + cacheUpdateTime.toGMTString()); }
 	}
 
 	private synchronized void CheckAndUpdateCache() throws WallaException
 	{
-		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.MINUTE, -1);
-
-		if (cacheUpdateTime.before(cal.getTime()))
+		long startMS = System.currentTimeMillis();
+		try
 		{
-			//Cache is out of date, so retrieve the latest.
-			platforms = utilityDataHelper.GetPlatformList();
-			apps = utilityDataHelper.GetAppList();
-			styles = utilityDataHelper.GetStyleList();
-			presentations = utilityDataHelper.GetPresentationList();
-			Calendar calNow = Calendar.getInstance();
-			cacheUpdateTime.setTime(calNow.getTimeInMillis());
-			
-			meLogger.debug("Cache has now been refreshed.  New timestamp:" + cacheUpdateTime.toGMTString());
+			Calendar cal = Calendar.getInstance();
+			cal.add(Calendar.MINUTE, -1);
+	
+			if (cacheUpdateTime.before(cal.getTime()))
+			{
+				//Cache is out of date, so retrieve the latest.
+				platforms = utilityDataHelper.GetPlatformList();
+				apps = utilityDataHelper.GetAppList();
+				styles = utilityDataHelper.GetStyleList();
+				presentations = utilityDataHelper.GetPresentationList();
+				Calendar calNow = Calendar.getInstance();
+				cacheUpdateTime.setTime(calNow.getTimeInMillis());
+				
+				if (meLogger.isDebugEnabled()) { meLogger.debug("Cache has now been refreshed.  New timestamp:" + cacheUpdateTime.toGMTString()); }
+			}
 		}
+		finally { UserTools.LogMethod("CheckAndUpdateCache", meLogger, startMS, ""); }
 	}
 	
 	public Platform GetPlatform(int platformId, String OSType, String machineType, int majorVersion, int minorVersion) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			meLogger.debug("GetPlatform has been started.  PlatformId:" + platformId + " OSType:" + OSType + " Machine:" + machineType + " Version:" + majorVersion + "." + minorVersion);
-			
 			CheckAndUpdateCache();
 			
 			//find platform object and return.
@@ -82,23 +88,16 @@ public class CachedData {
 				}
 			}
 			
-			//Platform not found so rise an exception
-			String error = "Platform is not valid.  PlatformId:" + platformId + " OSType:" + OSType + " Machine:" + machineType + " Version:" + majorVersion + "." + minorVersion;
-			meLogger.error(error);
-			throw new WallaException(this.getClass().getName(), "GetPlatform", error, 0);
+			return null;
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetPlatform", ex);
-			throw new WallaException(ex, 0);
-		}
+		finally { UserTools.LogMethod("GetPlatform", meLogger, startMS, "PlatformId:" + platformId + " OSType:" + OSType + " Machine:" + machineType + " Version:" + majorVersion + "." + minorVersion); }
 	}
 	
 	public App GetApp(int appId, String key) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			meLogger.debug("GetApp has been started.  AppId:" + appId);
-			
 			CheckAndUpdateCache();
 			
 			//find platform object and return.
@@ -122,37 +121,29 @@ public class CachedData {
 				}
 			}
 			
-			//App not found so raise an exception
-			String error = "App is not valid.  AppId:" + appId;
-			meLogger.error(error);
-			throw new WallaException(this.getClass().getName(), "GetApp", error, 0);
+			return null;
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetApp", ex);
-			throw new WallaException(ex, 0);
-		}
+		finally { UserTools.LogMethod("GetApp", meLogger, startMS, "AppId:" + appId + " Key:" + key); }
 	}
 	
 	public List<Style> GetStyleList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			meLogger.debug("GetStyleList has been started");
-			
 			CheckAndUpdateCache();
-			
-			meLogger.debug("GetStyleList has been completed");
-			
 			return styles;
 		}
 		catch (Exception ex) {
 			meLogger.error("Unexpected Exception in GetStyleList", ex);
 			throw new WallaException(ex, 0);
 		}
+		finally { UserTools.LogMethod("GetStyleList", meLogger, startMS, ""); }
 	}
 	
 	public Style GetStyle(int styleId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			CheckAndUpdateCache();
@@ -170,34 +161,25 @@ public class CachedData {
 			//Presentation not found so raise an exception
 			String error = "Style is not valid.  StyleId:" + styleId;
 			meLogger.error(error);
-			throw new WallaException(this.getClass().getName(), "GetStyle", error, 0);
+			throw new WallaException("CachedData", "GetStyle", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetStyle", ex);
-			throw new WallaException(ex, 0);
-		}
+		finally { UserTools.LogMethod("GetApp", meLogger, startMS, ""); }
 	}
 	
 	public List<Presentation> GetPresentationList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			meLogger.debug("GetPresentationList has been started");
-			
 			CheckAndUpdateCache();
-			
-			meLogger.debug("GetPresentationList has been completed");
-			
 			return presentations;
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetPresentationList", ex);
-			throw new WallaException(ex, 0);
-		}
+		finally { UserTools.LogMethod("GetPresentationList", meLogger, startMS, ""); }
 	}
 	
 	public Presentation GetPresentation(int presentationId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			CheckAndUpdateCache();
@@ -215,12 +197,9 @@ public class CachedData {
 			//Presentation not found so raise an exception
 			String error = "Presentation is not valid.  PresentationId:" + presentationId;
 			meLogger.error(error);
-			throw new WallaException(this.getClass().getName(), "GetPresentation", error, 0);
+			throw new WallaException("CachedData", "GetPresentation", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetPresentation", ex);
-			throw new WallaException(ex, 0);
-		}
+		finally { UserTools.LogMethod("GetPresentation", meLogger, startMS, String.valueOf(presentationId)); }
 	}
 	
 	public void setUtilityDataHelper(UtilityDataHelperImpl utilityDataHelper)

@@ -75,7 +75,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 				addImages = "OR [ImageId] IN (" + addImages + ")";
 			}
 			
-			String selectSql = "SELECT [ImageId], [Status], [Name], [LastUpdated], [Error], [ErrorMessage] FROM [Image] WHERE [UserId] = ? AND "
+			String selectSql = "SELECT [ImageId], [Status], [Name], [LastUpdated], [Error], [ErrorMessage] "
+					+ "FROM [Image] WHERE [UserId] = ? AND "
 					+ "(([Status] IN (1,2,3) AND [LastUpdated] > DATEADD(d,-30,dbo.GetDateNoMS())) " + addImages + ")";
 			
 			ps = conn.prepareStatement(selectSql);
@@ -851,6 +852,9 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 				updateSql = "UPDATE [Image] SET [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS(), "
 						+ "[ErrorMessage] = ?, [Error] = 1 "
 						+ "WHERE ImageId = ? AND [UserId] = ?";
+				
+				if (errorMessage.length() > 200)
+					errorMessage = errorMessage.substring(1, 200);
 				
 				ps = conn.prepareStatement(updateSql);
 				ps.setString(1, errorMessage);

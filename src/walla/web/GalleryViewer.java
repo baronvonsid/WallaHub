@@ -79,7 +79,7 @@ public class GalleryViewer {
 			if (urlComplex != null && urlComplex.length() == 36)
 				useUrlComplex = true;
 			
-			if (this.sessionState.getUserId() > 0 && userName.equalsIgnoreCase(this.sessionState.getUserName()))
+			if (this.sessionState.getUserId() > 0 && userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				securityPassed = true;
 				userId = this.sessionState.getUserId();
@@ -219,7 +219,7 @@ public class GalleryViewer {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreview request received, User: " + userName);}
 
-			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
+			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				Thread.sleep(3000);
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -267,7 +267,7 @@ public class GalleryViewer {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreviewImageList request received, User:" + userName + " Section Id:" + sectionId);}
 		
-			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
+			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				Thread.sleep(3000);
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());

@@ -1,6 +1,7 @@
 package walla.db;
 
 import javax.sql.DataSource;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -43,57 +44,52 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		this.dataSource = dataSource;
 	}
 	
-	public long CreateAccount(Account newAccount) throws WallaException
+	public long CreateAccount(Account newAccount, String passwordHash, String salt) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		CallableStatement createSproc = null;
 
 		try {			
-			//Execute SetupNewUser 'Stanley', 'Stanley Prem', 'stanley@fotowalla.com', 'Stan-a-rillo', 1
+			//Execute SetupNewUser 'Stanley', 'Stanley Prem', 'stanley@fotowalla.com', 'QWERTYUI', 'IUYTREW', 1
 
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(true);
 			
-			String sprocSql = "EXEC [dbo].[SetupNewUser] ?, ?, ?, ?, ?, ?";
+			String sprocSql = "EXEC [dbo].[SetupNewUser] ?, ?, ?, ?, ?, ?, ?";
 				
 			createSproc = conn.prepareCall(sprocSql);
 			createSproc.setString(1, newAccount.getProfileName());
 			createSproc.setString(2, newAccount.getDesc());
 			createSproc.setString(3, newAccount.getEmail());
-			createSproc.setString(4, newAccount.getPassword());
-			createSproc.setInt(5, newAccount.getAccountType());
-			createSproc.registerOutParameter(6, Types.INTEGER);
+			createSproc.setString(4, passwordHash);
+			createSproc.setString(5, salt);
+			createSproc.setInt(6, newAccount.getAccountType());
+			createSproc.registerOutParameter(7, Types.INTEGER);
 			createSproc.execute();
 			    
-		    long newUserId = createSproc.getLong(6);
-		    if (newUserId < 1)
-		    {
-		    	String error = "SetupNewUser sproc didn't return a valid user number";
-				meLogger.error(error);
-				throw new WallaException(this.getClass().getName(), "CreateAccount", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		    }
-
-			meLogger.debug("CreateAccount() completes OK. UserId:" + newUserId);
-			return newUserId;
+			return createSproc.getLong(7);
+		    //if (newUserId < 1)
+		    //{
+		    //	String error = "SetupNewUser sproc didn't return a valid user number";
+			//	meLogger.error(error);
+			//	throw new WallaException(this.getClass().getName(), "CreateAccount", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+		    //}
 		} 
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in CreateAccount", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in CreateAccount", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
 		}
 		finally {
 	        if (createSproc != null) try { createSproc.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateAccount", meLogger, startMS, newAccount.getProfileName());
 		}
 	}
 
-	public void UpdateAccount(long userId, Account account) throws WallaException
+	public void UpdateAccount(Account account) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -102,14 +98,13 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			String updateSql = "UPDATE [dbo].[User] SET [Description] = ?, [Email] = ?,[Password] = ?,"
+			String updateSql = "UPDATE [dbo].[User] SET [Description] = ?, [Email] = ?,"
 					+ "[RecordVersion] = [RecordVersion] + 1 WHERE [UserId] = ? AND [RecordVersion] = ?";
 			
 			ps = conn.prepareStatement(updateSql);
 			ps.setString(1, account.getDesc());
 			ps.setString(2, account.getEmail());
-			ps.setString(3, account.getPassword());
-			ps.setLong(4, userId);
+			ps.setLong(4, account.getId());
 			ps.setInt(5, account.getVersion());
 			
 			//Execute update and check response.
@@ -127,19 +122,17 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		} 
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateAccount", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
+		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateAccount", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateAccount", meLogger, startMS, String.valueOf(account.getId()));
 		}
 	}
 	
@@ -151,6 +144,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		3 - shutdown pending
 		4 - closed
 		 */
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -188,20 +182,17 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateMainStatus", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx);
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateMainStatus", ex);
-			throw new WallaException(ex);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateMainStatus", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
@@ -213,6 +204,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		2 - email not confirmed in timely manner
 		3 - email confirmed
 		 */
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -254,32 +246,30 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			{
 				conn.rollback();
 				String error = "Update status didn't return a success count of 1.";
-				throw new WallaException("ImageDataHelperImpl", "UpdateEmailStatus", error, 0); 
+				throw new WallaException("ImageDataHelperImpl", "UpdateEmailStatus", error, HttpStatus.CONFLICT.value()); 
 			}
 			
 			conn.commit();
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateEmailStatus", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx);
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateEmailStatus", ex);
-			throw new WallaException(ex);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
 		}
+		UserTools.LogMethod("UpdateEmailStatus", meLogger, startMS, String.valueOf(userId));
 	}
 	
 	public boolean ProfileNameIsUnique(String profileName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -300,18 +290,20 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in CheckProfileNameIsUnique", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("ProfileNameIsUnique", meLogger, startMS, profileName);
 		}
 	}
 	
-	public Account GetAccount(long userId) throws WallaException
+	public Account GetAccount(long userId)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -368,22 +360,27 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			return account;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetAccount", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return null;
 		} 
 		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetAccount", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(ex);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetAccount", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
+	
+	
+	
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		String sql = "INSERT INTO [dbo].[UserApp]([UserAppId],[PlatformId],[AppId],[MachineName],[LastUsed],[Blocked],[TagId],[UserAppCategoryId],"
 					+ "[UserDefaultCategoryId],[GalleryId],[FetchSize],[ThumbCacheMB],[MainCopyCacheMB],[MainCopyFolder],[AutoUpload],[AutoUploadFolder],[RecordVersion],[UserId])"
 					+ "VALUES(?,?,?,?,dbo.GetDateNoMS(),0,?,?,?,?,?,?,?,?,?,?,1,?)";
@@ -427,28 +424,26 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			}
 			
 			conn.commit();
-				
-		} catch (SQLException sqlEx) {
-			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateUserApp", sqlEx);
-			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
 		}
+		catch (SQLException sqlEx) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
+		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in CreateUserApp", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateUserApp", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public void UpdateUserApp(long userId, UserApp userApp) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -495,24 +490,23 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateUserApp", sqlEx);
-			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
+		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateUserApp", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateUserApp", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(userApp.getId()));
 		}
 	}
 	
 	public long FindExistingUserApp(long userId, int appId, int platformId, String machineName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -532,28 +526,27 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 
 			if (!resultset.next())
 			{
+				if (meLogger.isDebugEnabled()) { meLogger.debug("Existing user app was not found for user:" + String.valueOf(userId)); }
 				return 0;
 			}
 			
 			return resultset.getLong(1);
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in FindExistingUserApp", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return 0;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in FindExistingUserApp", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("FindExistingUserApp", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public UserApp GetUserApp(long userId, long userAppId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -610,20 +603,121 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 
 			return userApp;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetUserApp", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException ex) {
+			meLogger.error("Unexpected SQLException in GetUserApp", ex);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetUserApp", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetUserApp", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(userAppId));
 		}
 	}
 	
+	
+	
+	
+	public LogonState GetLogonState(String userName, String email)
+	{
+		long startMS = System.currentTimeMillis();
+		Connection conn = null;
+		PreparedStatement ps = null;
+		ResultSet resultset = null;
+		LogonState logonState = null;
 		
+		try {			
+			conn = dataSource.getConnection();
+
+			String selectSql = "SELECT [UserId], [ProfileName], [PasswordHash], [Salt], [FailedLoginCount], [FailedLoginLast] "
+								+ "FROM [dbo].[User] WHERE [ProfileName] = ? OR [email] = ?";
+							
+			ps = conn.prepareStatement(selectSql);
+			ps.setString(1, userName);
+			ps.setString(2, email);
+
+			resultset = ps.executeQuery();
+
+			if (!resultset.next())
+			{
+				return null;
+			}
+			
+			logonState = new LogonState();
+			logonState.setUserId(resultset.getLong(1));
+			logonState.setProfileName(resultset.getString(2));
+			logonState.setPasswordHash(resultset.getString(3));
+			logonState.setSalt(resultset.getString(4));
+			logonState.setFailedLogonCount(resultset.getInt(5));
+			
+			if (resultset.getTimestamp(6) != null)
+				logonState.setFailedLogonLast(resultset.getTimestamp(6));
+			
+			return logonState;
+		}
+		catch (SQLException sqlEx) {
+			meLogger.error(sqlEx);
+			return null;
+		} 
+		finally {
+			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
+			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetLogonState", meLogger, startMS, userName + " " + email);
+		}
+	}
+	
+	public void UpdateLogonState(long userId, int failedLoginCount, Date failedLoginLast) throws WallaException
+	{
+		long startMS = System.currentTimeMillis();
+		Connection conn = null;
+		PreparedStatement ps = null;
+		
+		try {			
+			int returnCount = 0;
+			String updateSql = null;
+			
+			conn = dataSource.getConnection();
+			conn.setAutoCommit(false);
+			
+			updateSql = "UPDATE [dbo].[User] SET [FailedLoginCount] = ?, [FailedLoginLast] = ? WHERE [UserId] = ?";
+
+			ps = conn.prepareStatement(updateSql);
+			ps.setInt(1, failedLoginCount);
+			
+			if (failedLoginLast != null)
+				ps.setTimestamp(2, new java.sql.Timestamp(failedLoginLast.getTime()));
+			else
+				ps.setNull(2, java.sql.Types.DATE);
+
+			ps.setLong(3, userId);
+
+			//Execute update and check response.
+			returnCount = ps.executeUpdate();
+			ps.close();
+			if (returnCount != 1)
+			{
+				conn.rollback();
+				String error = "Update statement didn't return a success count of 1.";
+				meLogger.error(error);
+				throw new WallaException("AccountDataHelperImpl", "UpdateLogonState", error, HttpStatus.CONFLICT.value()); 
+			}
+			
+			conn.commit();
+		}
+		catch (SQLException sqlEx) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx);
+		}
+		catch (Exception ex) {
+			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
+			throw ex;
+		}
+		finally {
+	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateLogonState", meLogger, startMS, String.valueOf(userId));
+		}
+	}
 }

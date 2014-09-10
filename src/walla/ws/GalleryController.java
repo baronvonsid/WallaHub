@@ -307,7 +307,7 @@ public class GalleryController {
 		{
 			if (meLogger.isDebugEnabled()) {meLogger.debug("PostGalleryPreview request received, User: " + userName);}
 
-			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getUserName()))
+			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				Thread.sleep(3000);
 				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());

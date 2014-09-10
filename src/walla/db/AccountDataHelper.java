@@ -12,8 +12,8 @@ import walla.utils.WallaException;
 
 public interface AccountDataHelper {
 
-	public long CreateAccount(Account newAccount) throws WallaException;
-	public void UpdateAccount(long userId, Account acount) throws WallaException;
+	public long CreateAccount(Account newAccount, String passwordHash, String salt) throws WallaException;
+	public void UpdateAccount(Account acount) throws WallaException;
 	public Account GetAccount(long userId) throws WallaException;
 	public void UpdateMainStatus(long userId, int status) throws WallaException;
 	public void UpdateEmailStatus(long userId, int status, String validationString) throws WallaException;
@@ -23,4 +23,7 @@ public interface AccountDataHelper {
 	public long FindExistingUserApp(long userId, int appId, int platformId, String machineName) throws WallaException;
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException;
 	public void UpdateUserApp(long userId, UserApp userApp) throws WallaException;
+	
+	public LogonState GetLogonState(String userName, String email) throws WallaException;
+	public void UpdateLogonState(long userId, int failedLoginCount, Date failedLoginLast) throws WallaException;
 }

@@ -352,11 +352,17 @@ public class CategoryService {
 		}
 	}
 	
-	public long CreateOrFindUserAppCategory(long userId, int platformId, String machineName)
+	public long CreateOrFindUserAppCategory(long userId, int platformId, String machineName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			Platform platform = cachedData.GetPlatform(platformId, "", "", 0, 0);
+			if (platform == null)
+			{
+				throw new WallaException("CategoryService", "CreateOrFindUserAppCategory", "Platform not found. platformId:" + platformId, HttpStatus.BAD_REQUEST.value()); 
+			}
+			
 			String categoryName = platform.getShortName() + " " + machineName;
 			if (categoryName.length() > 30)
 				categoryName = categoryName.substring(0,30);
@@ -389,18 +395,16 @@ public class CategoryService {
 				return categoryId;
 			}
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error(wallaEx);
-			return 0;
-		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			return 0;
+			throw new WallaException(ex);
 		}
+		finally { UserTools.LogMethod("CreateOrFindUserAppCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(platformId)); }
 	}
 	
-	public long FindDefaultUserCategory(long userId)
+	public long FindDefaultUserCategory(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			String sql = "SELECT MIN([CategoryId]) from Category where ParentId = (SELECT [CategoryId] FROM [Category] WHERE [ParentId] = 0 AND [UserId] = " + userId + ")";
@@ -412,17 +416,14 @@ public class CategoryService {
 			else
 			{
 				String error = "Couldn't retrieve a valid default category";
-				throw new WallaException("CategoryService", "FindDefaultUserCategory", error, 0); 
+				throw new WallaException("CategoryService", "FindDefaultUserCategory", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error(wallaEx);
-			return 0;
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			return 0;
+			throw new WallaException(ex);
 		}
+		finally { UserTools.LogMethod("FindDefaultUserCategory", meLogger, startMS, String.valueOf(userId)); }
 	}
 	
 	//*************************************************************************************************************

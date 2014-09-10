@@ -9,16 +9,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+
 import java.util.Random;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import walla.datatypes.*;
+import walla.datatypes.auto.Account;
 import walla.datatypes.auto.Gallery;
+import walla.datatypes.java.CustomSessionState;
 
 import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.apache.log4j.Logger;
+import org.springframework.http.HttpStatus;
 
 public final class UserTools {
 
@@ -151,7 +158,7 @@ public final class UserTools {
 	public static String GetComplexString()
 	{
 		UUID identifier = java.util.UUID.randomUUID();
-		return identifier.toString();
+		return identifier.toString().replace("-", "").toUpperCase();
 	}
 	
 	/*
@@ -223,4 +230,146 @@ public final class UserTools {
 		return m.matches();
 	}
 	
+	public static void LogWebMethod(String method, Logger meLogger, long startMS, HttpServletRequest request, int responseCode)
+	{
+		if (meLogger.isDebugEnabled())
+		{
+			long duration = System.currentTimeMillis() - startMS;
+			String queryString = request.getQueryString();
+			
+			if (queryString == null)
+				queryString = "";
+			
+			String message = method + "|" + duration + "|" + responseCode + "|" + request.getPathInfo() + "|" + queryString;
+			meLogger.debug(message);
+		}
+	}
+	
+	public static void LogMethod(String method, Logger meLogger, long startMS, String params)
+	{
+		if (meLogger.isDebugEnabled())
+		{
+			long duration = System.currentTimeMillis() - startMS;
+			String message = method + "|" + duration + "|" + params;
+			meLogger.debug(message);
+		}
+	}
+	
+	public static CustomSessionState GetValidSession(String requestProfileName, HttpServletRequest request, Logger meLogger)
+	{
+		HttpSession session = request.getSession(false);
+		if (session == null)
+		{
+			meLogger.warn("The tomcat session has not been established.");
+			return null;
+		}
+
+		CustomSessionState customSession = (CustomSessionState)session.getAttribute("CustomSessionState");
+		if (customSession == null)
+		{
+			meLogger.warn("The custom session state has not been established.");
+			return null;
+		}
+			
+		if (!customSession.isAuthenticated())
+		{
+			meLogger.warn("The session has not been authorised.");
+			return null;
+		}	
+
+		if (!customSession.getProfileName().equalsIgnoreCase(requestProfileName))
+		{
+			meLogger.warn("The profile name does not match between request and session");
+			return null;
+		}
+		
+		boolean found = false;
+		String requestSessionId = "";
+		for (int i = 0; i < request.getCookies().length; i++)
+		{
+			if (request.getCookies()[i].getName().compareTo("X-Walla-Id") == 0)
+			{
+				requestSessionId = request.getCookies()[i].getValue();
+			}
+		}
+		
+		if (requestSessionId.length() == 32)
+		{
+			for (int i = 0; i < customSession.getCustomSessionIds().size(); i++)
+			{
+				if (requestSessionId.compareTo(customSession.getCustomSessionIds().get(i)) == 0)
+					found = true;
+			}
+		}
+		
+		if (!found)
+		{
+			meLogger.warn("The custom session id does not have a match.");
+			return null;
+		}	
+		
+		if (customSession.getRemoteAddress().compareTo(request.getRemoteAddr()) != 0)
+		{
+			meLogger.warn("IP address of the session has changed since the logon key was issued.");
+			return null;
+		}
+		
+		return customSession;
+	}
+
+	public static boolean CheckNewUserSession(Account account, HttpServletRequest request, Logger meLogger)
+	{		
+		HttpSession session = request.getSession(false);
+		if (session == null)
+		{
+			meLogger.warn("The tomcat session has not been established.");
+			return false;
+		}
+
+		CustomSessionState customSession = (CustomSessionState)session.getAttribute("CustomSessionState");
+		if (customSession == null)
+		{
+			meLogger.warn("The custom session state has not been established.");
+			return false;
+		}
+		
+		String requestKey = (account.getKey() == null) ? "" : account.getKey();
+		String sessionKey = "";
+		synchronized(customSession) {
+			sessionKey = customSession.getNonceKey();
+			customSession.setNonceKey("");
+		}
+		
+		if (sessionKey.compareTo(requestKey) != 0)
+		{
+			meLogger.warn("One off new user key, does not match request.  ServerKey:" + sessionKey + " RequestKey:" + requestKey);
+			return false;
+		}
+		
+		if (customSession.isAuthenticated())
+		{
+			meLogger.warn("The session has already been authenticated and is not valid for creating a user");
+			return false;
+		}	
+		
+		if (customSession.getRemoteAddress().compareTo(request.getRemoteAddr()) != 0)
+		{
+			meLogger.warn("IP address of the session has changed since the logon key was issued.");
+			return false;
+		}
+		
+
+		
+		//TODO add isHuman check.
+		
+		return true;
+	}
+	
+	
+	public static String GetLatestWallaId(CustomSessionState customSession)
+	{
+		//Todo - remove old Ids.
+		return String.valueOf(customSession.getCustomSessionIds().get(customSession.getCustomSessionIds().size()-1));	
+	}
+
 }

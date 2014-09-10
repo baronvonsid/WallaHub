@@ -7,6 +7,7 @@ import walla.db.*;
 import walla.utils.*;
 
 
+import javax.servlet.http.HttpServletRequest;
 import javax.sql.DataSource;
 import javax.xml.datatype.*;
 import org.apache.log4j.Logger;
@@ -15,11 +16,13 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.security.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.apache.commons.lang3.*;
 
 @Service("AccountService")
 public class AccountService {
@@ -66,127 +69,126 @@ public class AccountService {
 	//Account close requested
 	//Account close completed
 
-	public int CreateUpdateAccount(long userId, Account account)
+	public int CreateAccount(Account account)
 	{
+		String email = "";
+		long startMS = System.currentTimeMillis();
 		try 
 		{
-			if (userId == 0)
+			email = (account.getEmail() == null) ? "" : account.getEmail();
+			
+			//Create new account
+			if (!UserTools.ValidEmailAddress(email))
 			{
-				meLogger.debug("CreateUpdateAccount() begins.  New Account.  Email: " + account.getEmail());
-				
-				//Create new account
-				if (!UserTools.ValidEmailAddress(account.getEmail()))
-				{
-					String error = "Account create failed, email doesn't fit a standard form.  Email:" + account.getEmail();
-					meLogger.error(error);
-					return HttpStatus.BAD_REQUEST.value();
-				}
-				
-				if (!UserTools.CheckPasswordStrength(account.getPassword()))
-				{
-					String error = "Account create failed, password does not meet minimum complexity rules." + account.getPassword();
-					meLogger.error(error);
-					return HttpStatus.BAD_REQUEST.value();
-				}
-				
-				if (!accountDataHelper.ProfileNameIsUnique(account.getProfileName()))
-				{
-					String error = "Profile name is already in use.  " + account.getProfileName();
-					meLogger.error(error);
-					return HttpStatus.BAD_REQUEST.value();
-				}
-	
-				long newUserId = accountDataHelper.CreateAccount(account);
-				account.setId(newUserId);
-				
-				//TODO decouple.
-				SendEmailConfirm(newUserId);
-				
-				meLogger.debug("CreateUpdateAccount() has created a new account.  Email: " + account.getEmail() + " UserId:" + newUserId);
-				return HttpStatus.CREATED.value();
+				meLogger.error("Account create failed, email doesn't fit a standard form.  Email:" + email);
+				return HttpStatus.BAD_REQUEST.value();
 			}
-			else
+			
+			if (!UserTools.CheckPasswordStrength(account.getPassword()))
 			{
-				meLogger.debug("CreateUpdateAccount() begins.  Existing Account.  UserId: " + userId);
-				
-				//Check name is the same
-				//if (userId != account.getId())
-				//{
-				//	String error = "Account update failed, user ids don't match.  UserId: " + userId;
-				//	meLogger.error(error);
-				//	return HttpStatus.BAD_REQUEST.value();
-				//}
-				
-				if (!UserTools.CheckPasswordStrength(account.getPassword()))
-				{
-					String error = "Account update failed, password does not meet minimum complexity rules." + account.getPassword();
-					meLogger.error(error);
-					return HttpStatus.BAD_REQUEST.value();
-				}
-	
-				accountDataHelper.UpdateAccount(userId, account);
+				meLogger.error("Account create failed, password does not meet minimum complexity rules." + account.getPassword());
+				return HttpStatus.BAD_REQUEST.value();
+			}
+			
+			if (account.getProfileName().length() >30 || account.getProfileName().contains(" "))
+			{
+				meLogger.error("Profile name is not set correctly.  " + account.getProfileName());
+				return HttpStatus.BAD_REQUEST.value();
+			}
+			
+			if (!accountDataHelper.ProfileNameIsUnique(account.getProfileName()))
+			{
+				String error = "Profile name is already in use.  " + account.getProfileName();
+				meLogger.error(error);
+				return HttpStatus.BAD_REQUEST.value();
+			}
 
-				meLogger.debug("CreateUpdateAccount() has updated the account.  UserId:" + userId);
-				return HttpStatus.OK.value();
+			String salt = SecurityTools.GenerateSalt();
+			String passwordHash = SecurityTools.GetHashedPassword(account.getPassword(), salt);
+			
+			long newUserId = accountDataHelper.CreateAccount(account, passwordHash, salt);
+			if (newUserId == 0)
+			{
+				meLogger.warn("User could not be created.");
+				return HttpStatus.BAD_REQUEST.value();
 			}
+
+			//TODO decouple.
+			SendEmailConfirm(newUserId);
+			
+			meLogger.info("New user has been created.  Email: " + account.getEmail() + " UserId:" + newUserId);
+			return HttpStatus.CREATED.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateUpdateAccount");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process CreateUpdateAccount", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally { UserTools.LogMethod("CreateAccount", meLogger, startMS, email); }
+	}
+	
+	public int UpdateAccount(Account account)
+	{
+		long startMS = System.currentTimeMillis();
+		try 
+		{
+			accountDataHelper.UpdateAccount(account);
+			return HttpStatus.OK.value();
+		}
+		catch (WallaException wallaEx) {
+			return wallaEx.getCustomStatus();
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return HttpStatus.INTERNAL_SERVER_ERROR.value();
+		}
+		finally { UserTools.LogMethod("UpdateAccount", meLogger, startMS, account.getProfileName()); }
 	}
 
 	public Account GetAccount(long userId, CustomResponse customResponse)
 	{
-		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetAccount() begins. UserId:" + userId);
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			Account account = accountDataHelper.GetAccount(userId);
 			if (account == null)
 			{
-				String error = "GetAccount didn't return a valid Account object";
-				meLogger.error(error);
-				throw new WallaException("AccountService", "GetAccount", error, HttpStatus.BAD_REQUEST.value()); 
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return null;
 			}
-			
-			meLogger.debug("GetAccount has completed. UserId:" + userId);
-			
+
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return account;
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetAccount", wallaEx);
-			customResponse.setResponseCode(wallaEx.getCustomStatus());
-			return null;
-		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetAccount",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally { UserTools.LogMethod("GetAccount", meLogger, startMS, String.valueOf(userId)); }
 	}
 	
-	public int AckEmailConfirm(String userName, String requestValidationString)
+	public int AckEmailConfirm(String profileName, String requestValidationString)
 	{
 		//TODO - expire email validation string
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			String sql = "SELECT [UserId] FROM [dbo].[User] WHERE [ProfileName] = '" + userName + "'";
+			if (profileName.length() >30 || profileName.contains(" "))
+			{
+				meLogger.error("Profile name is not set correctly.  " + profileName);
+				return HttpStatus.BAD_REQUEST.value();
+			}
+			
+			String sql = "SELECT [UserId] FROM [dbo].[User] WHERE [ProfileName] = '" + profileName + "'";
 			long userId = utilityDataHelper.GetLong(sql);
 			
 			sql = "SELECT [ValidationString] FROM [dbo].[User] WHERE [EmailStatus] = 1 AND [UserId] = " + userId;
 			String serverValidationString = utilityDataHelper.GetString(sql);
 			if (serverValidationString.equals(requestValidationString))
 			{
-
-				
 				accountDataHelper.UpdateEmailStatus(userId, 3, "");;
 				//Check if banking is all done and if so, mark the account as Live.
 				/*
@@ -201,30 +203,35 @@ public class AccountService {
 			}
 			else
 			{
-				meLogger.error("AckEmailConfirm - Validation string didn't match for account: " + userId);
+				meLogger.error("AckEmailConfirm - Validation string didn't match for account: " + userId + " requestValidationString:" + requestValidationString);
 				return HttpStatus.BAD_REQUEST.value();
 			}
 		}
-		catch (WallaException wallaEx)
-		{
-			meLogger.error(wallaEx);
-			return HttpStatus.BAD_REQUEST.value();
+		catch (WallaException wallaEx) {
+			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally { UserTools.LogMethod("AckEmailConfirm", meLogger, startMS, profileName); }
 	}
 
+	
+	
+	
+	
 	public long CreateUserApp(long userId, int appId, int platformId, UserApp proposedUserApp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
 			meLogger.debug("CreateUserApp() begins. UserId:" + userId);
 			
 			if (proposedUserApp.getMachineName() == null || proposedUserApp.getMachineName().isEmpty())
 			{
-				String error = "CreateUserApp didn't receive a machine name, this is mandatory.";
-				throw new WallaException("AccountService", "CreateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+				meLogger.warn("CreateUserApp didn't receive a machine name, this is mandatory.");
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return 0;
 			}
 			
 			long userAppId = accountDataHelper.FindExistingUserApp(userId, appId, platformId, proposedUserApp.getMachineName());
@@ -272,48 +279,46 @@ public class AccountService {
 			
 			accountDataHelper.CreateUserApp(userId, newUserApp);
 
-			meLogger.debug("CreateUserApp has completed. UserId:" + userId + " UserAppId:" + userAppId);
-			
 			customResponse.setResponseCode(HttpStatus.CREATED.value());
 			return userAppId;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateUserApp", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return 0;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process CreateUserApp",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
 		}
+		finally { UserTools.LogMethod("CreateUserApp", meLogger, startMS, String.valueOf(userId)); }
 	}
 
 	public void UpdateUserApp(long userId, int appId, int platformId, UserApp updatedUserApp, CustomResponse customResponse)
 	{
-		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("UpdateUserApp() begins. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
-
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			UserApp userApp = accountDataHelper.GetUserApp(userId, updatedUserApp.getId());
 			if (userApp == null)
 			{
-				String error = "UpdateUserApp didn't return a valid UserApp object";
-				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.NOT_FOUND.value()); 
+				meLogger.warn("UpdateUserApp didn't return a valid UserApp object");
+				customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+				return;
 			}
 			
 			if (platformId != userApp.getPlatformId())
 			{
-				String error = "Account update failed, platforms do not match.  PlatformId:" + platformId;
-				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+				meLogger.warn("Account update failed, platforms do not match.  PlatformId:" + platformId);
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return;
 			}
 			
 			if (appId != updatedUserApp.getAppId())
 			{
-				String error = "Account update failed, apps do not match.  AppId:" + appId;
-				throw new WallaException("AccountService", "UpdateUserApp", error, HttpStatus.BAD_REQUEST.value()); 
+				meLogger.warn("Account update failed, apps do not match.  AppId:" + appId);
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return;
 			}
 			
 			//Ensure correct platformId and appId is used
@@ -331,34 +336,29 @@ public class AccountService {
 			
 			accountDataHelper.UpdateUserApp(userId, updatedUserApp);
 
-			meLogger.debug("UpdateUserApp has completed. UserId:" + userId + " UserAppId:" + updatedUserApp.getId());
-			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process UpdateUserApp", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process UpdateUserApp",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
+		finally { UserTools.LogMethod("UpdateUserApp", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(updatedUserApp.getId())); }
 	}
 	
 	public UserApp GetUserApp(long userId, int appId, int platformId, long userAppId, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetUserApp() begins. UserId:" + userId);
-			
 			UserApp userApp = accountDataHelper.GetUserApp(userId, userAppId);
 			if (userApp == null)
 			{
-				String error = "GetUserApp didn't return a valid UserApp object";
-				meLogger.error(error);
-				throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.NOT_FOUND.value()); 
+				String error = "GetUserApp didn't return a valid UserApp object using id: " + userAppId;
+				meLogger.warn(error);
+				customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+				return null;
 			}
 			
 			//Check the userapp is still relevent for the platform.
@@ -366,7 +366,7 @@ public class AccountService {
 			{
 				//Register new userapp, the platform has changed.  This could either be an upgrade, name change or copying config.
 				//Use existing app as a starting point.
-				meLogger.debug("Platforms don't match, create a new platform. UserId:" + userId + " PlatformId:" + platformId);
+				meLogger.info("Platforms don't match, create a new platform. UserAppId:" + userAppId + " PlatformId:" + platformId);
 				
 				UserApp newUserApp = new UserApp();
 				newUserApp.setAutoUpload(userApp.isAutoUpload());
@@ -380,117 +380,399 @@ public class AccountService {
 				userApp = accountDataHelper.GetUserApp(userId, newUserAppId);
 				if (userApp == null)
 				{
-					String error = "GetUserApp didn't return a valid UserApp object";
-					meLogger.error(error);
-					throw new WallaException("AccountService", "GetUserApp", error, HttpStatus.NOT_FOUND.value()); 
+					meLogger.warn("GetUserApp didn't return the new UserApp object: " + newUserAppId);
+					customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+					return null;
 				}
 			}
-			
-			meLogger.debug("GetUserApp has completed. UserId:" + userId);
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return userApp;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetUserApp", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetUserApp",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally { UserTools.LogMethod("GetUserApp", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(userAppId)); }
 	}
 	
-	public boolean CheckProfileNameIsUnique(String profileName) throws WallaException
+	public boolean CheckProfileNameIsUnique(String profileName, CustomResponse customResponse)
 	{
-		try {
-			meLogger.debug("CheckProfileNameIsUnique() is being run. Profile name:" + profileName);
-
-			return accountDataHelper.ProfileNameIsUnique(profileName);
-		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CheckProfileNameIsUnique", wallaEx);
-			throw wallaEx;
+		long startMS = System.currentTimeMillis();
+		try 
+		{
+			if (profileName.length() >30 || profileName.contains(" "))
+			{
+				meLogger.error("Profile name is not set correctly.  " + profileName);
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return false;
+			}
+			
+			boolean isUnique = accountDataHelper.ProfileNameIsUnique(profileName);
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			return isUnique;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetUserApp",ex);
-			throw ex;
+			meLogger.error(ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return false;
 		}
+		finally { UserTools.LogMethod("CheckProfileNameIsUnique", meLogger, startMS, profileName); }
 	}
-	
-	public int GetPlatformId(String OS, String machine, int major, int minor, CustomResponse customResponse)
+
+	public int GetPlatformId(ClientApp clientApp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
+			String OS = (clientApp.getOS() == null) ? "" : clientApp.getOS();
+			String machine = (clientApp.getMachineType() == null) ? "" : clientApp.getMachineType();
+			int major = clientApp.getMajor();
+			int minor = clientApp.getMinor();
+			
+			if (OS == null || machine == null || OS.length() < 1 || machine.length() < 1)
+			{
+				meLogger.warn("Valid OS and machines not supplied.  OS:" + OS + " machine:" + machine);
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return 0;
+			}
+			
 			Platform platform = cachedData.GetPlatform(0, OS, machine, major, minor);
+			if (platform == null)
+			{
+				meLogger.info("Platform not found. OS:" + OS + " machine:" + machine);
+				customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
+				return 0;
+			}
+			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return platform.getPlatformId();
-		}
-		catch (WallaException wallaEx)
-		{
-			meLogger.error(wallaEx);
-			customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
-			return 0;
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
 		}
+		finally { UserTools.LogMethod("GetPlatformId", meLogger, startMS, ""); }
 	}
 	
-	public int VerifyApp(String wsKey, CustomResponse customResponse)
+	public int VerifyApp(ClientApp clientApp, CustomResponse customResponse)
 	{
 		//Check for key existing in Walla	
 		//If not, then send back not found message
 		//If exists - but retired, then send back not acceptable message
 		//Else send back OK.
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			App app = cachedData.GetApp(0, wsKey);
-			if (app.getStatus() != 1)
+			String key = clientApp.getWSKey();
+			if (key == null || key.length() < 10)
 			{
+				meLogger.warn("Valid key not supplied.  Key:" + clientApp.getWSKey());
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return 0;
+			}
+			
+			App app = cachedData.GetApp(0, clientApp.getWSKey());
+			if (app == null)
+			{
+				meLogger.info("App not found.  Key:" + clientApp.getWSKey());
 				customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
 				return 0;
 			}
+			
+			if (app.getStatus() != 1)
+			{
+				meLogger.info("App not enabled.  Key:" + clientApp.getWSKey());
+				customResponse.setResponseCode(HttpStatus.NOT_ACCEPTABLE.value());
+				return 0;
+			}
+			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return app.getAppId();
-		}
-		catch (WallaException wallaEx)
-		{
-			meLogger.error(wallaEx);
-			customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
-			return 0;
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
 		}
+		finally { UserTools.LogMethod("VerifyApp", meLogger, startMS, ""); }
 	}
 
-	public long LogonCheck(String userName)
+	public String GetNewUserToken(HttpServletRequest request, CustomSessionState customSession, CustomResponse customResponse)
 	{
+		//Only reads user data from DB, any state is held in the session object.
+		long startMS = System.currentTimeMillis();
+
 		try
 		{
-			//TODO - Do it!
-			String sql = "SELECT [UserId] FROM [dbo].[User] WHERE [ProfileName] = '" + userName + "'";
-			long userId = utilityDataHelper.GetLong(sql);
-			return userId;
-		}
-		catch (WallaException wallaEx)
-		{
-			meLogger.error(wallaEx);
-			return -1;
+			//Passed initial checks, so issue a key and update the custom session.
+			String newKey = UserTools.GetComplexString();
+			
+			//TEMP overide for testing!!!!
+			newKey = "12345678901234567890123456789012";
+			
+			synchronized(customSession) {
+				customSession.setNonceKey(newKey);
+				customSession.setHuman(false);
+				customSession.setRemoteAddress(request.getRemoteAddr());
+			}
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			
+			return newKey;
 		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			return -1;
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return "";
 		}
+		finally { UserTools.LogMethod("GetNewUserToken", meLogger, startMS, ""); }
+	}
+	
+	public String GetLogonToken(Logon logon, HttpServletRequest request, CustomSessionState customSession, CustomResponse customResponse)
+	{
+		//Only reads user data from DB, any state is held in the session object.
+		long startMS = System.currentTimeMillis();
+		String profileName = "";
+		String email = "";
+		try
+		{
+			profileName = (logon.getProfileName() == null) ? "": logon.getProfileName();
+			email = (logon.getEmail() == null) ? "": logon.getEmail();
+			if (profileName.length() < 5 && email.length() < 5)
+			{
+				meLogger.warn("Profile name/email not supplied correctly.");
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return "";
+			}
+	    
+			//Head off unauthorised attempts if they come from the same session.
+			Date failedLogonLast = customSession.getFailedLogonLast();
+			if (failedLogonLast != null)
+			{
+			    Calendar calendar = Calendar.getInstance();
+			    calendar.setTime(failedLogonLast);
+			    
+			    //If less than five failed logons, ensure a retry is not done within 2 seconds.  Otherwise its a 30 second delay.
+			    if (customSession.getFailedLogonCount() <= 5)
+				    calendar.add(Calendar.SECOND, 2);
+			    else
+			    	calendar.add(Calendar.SECOND, 30);
+				
+			    if (calendar.getTime().after(new Date()))
+			    {
+			    	meLogger.warn("Subsequent logon token request too soon after previous failure. (session)");
+			    	customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+			    	return "";
+			    }
+			}
+			
+			LogonState userStateDb = accountDataHelper.GetLogonState(profileName, email);
+			if (userStateDb == null)
+			{
+				meLogger.warn("Logon state could not be retrieved from the database.  ProfileName: " + profileName + " Email:" + email);
+		    	customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+		    	return "";
+			}
+			
+			//Check DB state for last login information
+			failedLogonLast = userStateDb.getFailedLogonLast();
+			if (failedLogonLast != null)
+			{
+			    Calendar calendar = Calendar.getInstance();
+			    calendar.setTime(failedLogonLast);
+			    
+			    //If less than five failed logons, ensure a retry is not done within 2 seconds.  Otherwise its a 30 second delay.
+			    if (userStateDb.getFailedLogonCount() <= 5)
+				    calendar.add(Calendar.SECOND, 2);
+			    else
+			    	calendar.add(Calendar.SECOND, 30);
+				
+			    if (calendar.getTime().after(new Date()))
+			    {
+			    	meLogger.warn("Subsequent logon token request too soon after previous failure. (db)");
+			    	customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+			    	return "";
+			    }
+			}
+			
+			//Passed initial checks, so issue a key and update the custom session.
+			String newKey = UserTools.GetComplexString();
+			
+			//TEMP overide for testing!!!!
+			newKey = "12345678901234567890123456789012";
+			
+			synchronized(customSession) {
+				customSession.setNonceKey(newKey);
+				customSession.setProfileName(userStateDb.getProfileName());
+				customSession.setUserId(userStateDb.getUserId());
+				customSession.setRemoteAddress(request.getRemoteAddr());
+			}
+			
+			customResponse.setResponseCode(HttpStatus.OK.value());
+			
+			return newKey;
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return "";
+		}
+		finally { UserTools.LogMethod("GetLogonToken", meLogger, startMS, "ProfileName: " + profileName + " Email:" + email); }
+	}
+	
+	public boolean LogonCheck(Logon logon, HttpServletRequest request, CustomSessionState customSession)
+	{
+		long startMS = System.currentTimeMillis();
+		String profileName = "";
+		String password = "";
+		String requestKey = "";
+		
+		try
+		{
+			profileName = logon.getProfileName();
+			password = logon.getPassword();
+			
+			synchronized(customSession) {
+				requestKey = customSession.getNonceKey();
+				customSession.setNonceKey("");
+			}
+			
+			Date failedLogonLast = customSession.getFailedLogonLast();
+			if (failedLogonLast != null)
+			{
+			    Calendar calendar = Calendar.getInstance();
+			    calendar.setTime(failedLogonLast);
+			    
+			    //If less than five failed logons, ensure a retry is not done within 2 seconds.  Otherwise its a 30 second delay.
+			    if (customSession.getFailedLogonCount() <= 5)
+				    calendar.add(Calendar.SECOND, 2);
+			    else
+			    	calendar.add(Calendar.SECOND, 30);
+				
+			    if (calendar.getTime().after(new Date()))
+			    {
+			    	meLogger.warn("Subsequent logon request too soon after previous failure. (session)");
+			    	return false;
+			    }
+			}
+
+			if (customSession.getRemoteAddress().compareTo(request.getRemoteAddr()) != 0)
+			{
+				meLogger.warn("IP address of the session has changed since the logon key was issued..");
+				return false;
+			}
+			
+			if (profileName == null || password == null || requestKey == null)
+			{
+				meLogger.warn("Not all the logon fields were supplied, logon failed.");
+				return false;
+			}
+		    
+			if (profileName.length() < 5 || password.length() < 8 || requestKey.length() != 32)
+			{
+				meLogger.warn("The logon fields supplied did meet minimum size, logon failed.  profileName:" + profileName + " password length:" + password.length() + " key:" + requestKey);
+				return false;
+			}
+			
+		    //Check one-off logon key, matches between server and request.
+			if (requestKey.compareTo(logon.getKey()) != 0)
+			{
+				meLogger.warn("One off logon key, does not match request.  ServerKey:" + requestKey + " RequestKey:" + logon.getKey());
+				return false;
+			}
+			
+			if (profileName.compareTo(customSession.getProfileName()) != 0)
+			{
+				meLogger.warn("Custom session user name does not match the request username.  Request name:" + profileName + " Session Name:" + customSession.getProfileName());
+				return false;
+			}
+			
+			LogonState userStateDb = accountDataHelper.GetLogonState(profileName, "");
+			if (userStateDb == null)
+			{
+				meLogger.warn("Logon state could not be retrieved from the database.  ProfileName: " + profileName);
+		    	return false;
+			}
+
+			//Get a hash of the password attempt.
+			String passwordAttemptHash = SecurityTools.GetHashedPassword(logon.getPassword(), userStateDb.getSalt());
+
+			if (SecurityTools.SlowEquals(passwordAttemptHash.getBytes(), userStateDb.getPasswordHash().getBytes()))
+			{
+				synchronized(customSession) 
+				{
+					customSession.getCustomSessionIds().add(UserTools.GetComplexString());
+					customSession.setFailedLogonCount(0);
+					customSession.setFailedLogonLast(null);
+					customSession.setAuthenticated(true);
+				}
+				accountDataHelper.UpdateLogonState(userStateDb.getUserId(), 0, null);
+				meLogger.debug("Logon successfull for User: " + logon.getProfileName());
+				
+				return true;
+			}
+			else
+			{
+				int failCount = Math.max(userStateDb.getFailedLogonCount(), customSession.getFailedLogonCount()) + 1;
+				synchronized(customSession) 
+				{
+					customSession.setFailedLogonCount(failCount);
+					customSession.setFailedLogonLast(new Date());
+					customSession.setAuthenticated(false);
+				}
+				
+				accountDataHelper.UpdateLogonState(userStateDb.getUserId(), failCount, new Date());
+				meLogger.warn("Password didn't match, logon failed.");
+
+				//Check for number of recent failures.  More than 5? then 60 seconds delay.
+				if (customSession.getFailedLogonCount() > 5)
+					Thread.sleep(30000);
+				else
+					Thread.sleep(1000);
+				
+				return false;
+			}
+			
+		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return false;
+		}
+		finally { UserTools.LogMethod("LogonCheck", meLogger, startMS, profileName); }
 	}
 
+	//TODO
+	public boolean ChangePassword(Logon logon)
+	{
+		try
+		{
+			//Check logon key, profle name, password are all OK.
+			
+			//Validate old password
+			
+			//Create new salt and password hash
+			String salt = SecurityTools.GenerateSalt();
+			String passwordHash = SecurityTools.GetHashedPassword(logon.getPassword(), salt);
+			
+			
+			//Create new password hash
+			
+			//Save to DB
+			
+			return true;
+		}
+		catch (Exception ex)
+		{
+			return false;
+		}
+	}
 	
 	//*************************************************************************************************************
 	//*************************************  Messaging initiated methods ******************************************
@@ -501,7 +783,7 @@ public class AccountService {
 		try
 		{
 			String validationString = UserTools.GetComplexString();
-			accountDataHelper.UpdateEmailStatus(userId, 1, validationString.substring(0,30));
+			accountDataHelper.UpdateEmailStatus(userId, 1, validationString.substring(0,32));
 			
 			//TODO actually send email.
 		}

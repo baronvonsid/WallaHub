@@ -5,6 +5,7 @@ import walla.datatypes.auto.*;
 import walla.datatypes.java.*;
 import walla.db.*;
 import walla.utils.*;
+
 import javax.sql.DataSource;
 import javax.xml.datatype.*;
 import org.apache.log4j.Logger;
@@ -241,11 +242,18 @@ public class TagService {
 		
 	}
 	
-	public long CreateOrFindUserAppTag(long userId, int platformId, String machineName)
+	public long CreateOrFindUserAppTag(long userId, int platformId, String machineName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			Platform platform = cachedData.GetPlatform(platformId, "", "", 0, 0);
+			if (platform == null)
+			{
+				String error = "Platform not found. platformId:" + platformId;
+				throw new WallaException("TagService", "CreateOrFindUserAppTag", error, HttpStatus.BAD_REQUEST.value()); 
+			}
+			
 			String tagName = platform.getShortName() + " " + machineName;
 			if (tagName.length() > 30)
 				tagName = tagName.substring(0,30);
@@ -268,14 +276,11 @@ public class TagService {
 				return newTagId;
 			}
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error(wallaEx);
-			return 0;
-		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			return 0;
+			throw new WallaException(ex);
 		}
+		finally { UserTools.LogMethod("CreateOrFindUserAppTag", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(platformId)); }
 	}
 	
 	//*************************************************************************************************************

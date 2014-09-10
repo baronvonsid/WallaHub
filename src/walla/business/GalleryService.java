@@ -278,8 +278,9 @@ public class GalleryService {
 		}
 	}
 
-	public long GetDefaultGallery(long userId, int appId)
+	public long GetDefaultGallery(long userId, int appId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			App app = cachedData.GetApp(appId, "");
@@ -295,14 +296,11 @@ public class GalleryService {
 			
 			return 0;
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error(wallaEx);
-			return 0;
-		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			return 0;
+			throw new WallaException(ex);
 		}
+		finally { UserTools.LogMethod("GetDefaultGallery", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(appId)); }
 	}
 	
 	public GalleryOptions GetGalleryOptions(long userId, Date clientVersionTimestamp, CustomResponse customResponse)

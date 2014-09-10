@@ -812,7 +812,10 @@ public class TagDataHelperImpl implements TagDataHelper {
 			    size = resultset.getRow();
 			    resultset.beforeFirst();
 			}
-			catch(Exception ex) {}
+			catch(Exception ex) 
+			{
+				String test = ex.getMessage();
+			}
 			
 			long[] returnTagId = new long[size];
 			for (int i = 0; i < size; i++)

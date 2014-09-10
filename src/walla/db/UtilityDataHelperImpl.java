@@ -33,6 +33,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 	
 	private static final Logger meLogger = Logger.getLogger(UtilityDataHelperImpl.class);
 	
+	//To be refactored!!!
 	public List<Platform> GetPlatformList() throws WallaException
 	{
 		Connection conn = null;
@@ -265,8 +266,13 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		}
 	}
 	
+	
+	
+	
+	//***** re-factored!!!  All below.
 	public long GetNewId(String idType) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		CallableStatement idSproc = null;
 		try {
@@ -289,28 +295,23 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 		    {
 		    	String error = "GETID sproc didn't return a positive number";
 				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetNewId", error, 0);
+				throw new WallaException("UtilityDataHelperImpl", "GetNewId", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 		    }
 		}
 		catch (SQLException sqlEx) {
 			meLogger.error("Unexpected SQLException in GetNewId", sqlEx);
-			throw new WallaException(sqlEx,0);
+			throw new WallaException("UtilityDataHelperImpl", "GetInt", sqlEx.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetNewId", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 	        if (idSproc != null) try { idSproc.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetNewId", meLogger, startMS, idType);
 		}
 	}
 
 	public int GetInt(String sql) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -327,36 +328,32 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			else
 			{
-				String error = "Select statement didn't return any records, in GetInt.";
+				String error = "Select statement didn't return any records";
 				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetInt", error, 0); 
+				throw new WallaException("UtilityDataHelperImpl", "GetInt", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetInt", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException("UtilityDataHelperImpl", "GetInt", sqlEx.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetInt", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetInt", meLogger, startMS, sql);
 		}
 	}
 	
 	public long GetLong(String sql) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
 		
-		try {			
+		try 
+		{			
 			conn = dataSource.getConnection();
 
 			ps = conn.prepareStatement(sql);
@@ -368,27 +365,26 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			else
 			{
-				return -1;
+				String error = "Select statement didn't return any records.";
+				meLogger.error(error);
+				throw new WallaException("UtilityDataHelperImpl", "GetLong", error, HttpStatus.BAD_REQUEST.value()); 
 			}
-		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetLong", sqlEx);
-			throw new WallaException(sqlEx,0);
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetLong", ex);
-			throw new WallaException(ex, 0);
+		catch (SQLException sqlEx) {
+			meLogger.error(sqlEx);
+			throw new WallaException("UtilityDataHelperImpl", "GetLong", sqlEx.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetLong", meLogger, startMS, sql);
 		}
 	}
-	
-	
+		
 	public String GetString(String sql) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -407,24 +403,18 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			{
 				String error = "Select statement didn't return any records, in GetInt.";
 				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetString", error, 0); 
+				throw new WallaException("UtilityDataHelperImpl", "GetString", error, HttpStatus.BAD_REQUEST.value()); 
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetString", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException("UtilityDataHelperImpl", "GetString", sqlEx.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetString", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetString", meLogger, startMS, sql);
 		}
 	}
 	

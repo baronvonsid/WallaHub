@@ -7,28 +7,32 @@ import walla.datatypes.auto.*;
 
 public class CustomSessionState {
 
-	private String userName = "";
+	private String profileName = "";
 	private long userId = -1;
 	private ArrayList<Long> uploadReceivedImageIds = null;
-	//private UploadStatusList uploadStatusList;
-	//private boolean initUploadList = false;
 	private long userAppId = -1;
 	private int platformId = -1;
 	private int appId = -1;
-	private boolean isRobot = true;
+	private boolean isHuman = false;
+	private boolean isAuthenticated = false;
 	private Gallery galleryPreview = null;
 	private String galleryTempKey = "";
 	
-	//private List<UploadStatusList.ImageUploadRef> uploadImageList;
-
-	public String getUserName()
+	
+	private ArrayList<String> customSessionIds = null;
+	private String nonceKey = "";
+	private int failedLogonCount = 0;
+	private Date failedLogonLast = null;
+	private String remoteAddress = "";
+	
+	public String getProfileName()
 	{
-		return this.userName;
+		return this.profileName;
 	}
 	
-	public void setUserName(String value)
+	public void setProfileName(String value)
 	{
-		this.userName = value;
+		this.profileName = value;
 	}
 	
 	public long getUserId()
@@ -47,7 +51,7 @@ public class CustomSessionState {
         }
         return this.uploadReceivedImageIds;
     }
-	
+	    
 	public long getUserAppId()
 	{
 		return this.userAppId;
@@ -78,14 +82,24 @@ public class CustomSessionState {
 		this.appId = appId;
 	}
 	
-	public boolean isRobot()
+	public boolean isHuman()
 	{
-		return this.isRobot;
+		return this.isHuman;
 	}
 	
-	public void setRobot(boolean isRobot)
+	public void setHuman(boolean value)
 	{
-		this.isRobot = isRobot;
+		this.isHuman = value;
+	}
+	
+	public boolean isAuthenticated()
+	{
+		return this.isAuthenticated;
+	}
+	
+	public void setAuthenticated(boolean isAuthenticated)
+	{
+		this.isAuthenticated = isAuthenticated;
 	}
 	
 	public Gallery getGalleryPreview()
@@ -108,59 +122,52 @@ public class CustomSessionState {
 		this.galleryTempKey = value;
 	}
 	
-	
-	/*
-    public List<UploadStatusList.ImageUploadRef> getImageUploadRefList() {
-        if (uploadImageList == null) {
-        	uploadImageList = new ArrayList<UploadStatusList.ImageUploadRef>();
+    public List<String> getCustomSessionIds() {
+        if (customSessionIds == null) {
+        	customSessionIds = new ArrayList<String>();
         }
-        return this.uploadImageList;
+        return this.customSessionIds;
     }
-	*/
+    
+	public String getNonceKey()
+	{
+		return this.nonceKey;
+	}
 	
-    /*
-    
-    public class ImageUploadRef {
+	public void setNonceKey(String value)
+	{
+		this.nonceKey = value;
+	}
+	
+	public int getFailedLogonCount()
+	{
+		return this.failedLogonCount;
+	}
+	
+	public void setFailedLogonCount(int value)
+	{
+		this.failedLogonCount = value;
+	}
 
-        private long imageId;
-        private int imageStatus;
-        private Date lastUpdated = null;
-        private String errorMessage;
-
-        public long getImageId() {
-            return imageId;
-        }
-
-        public void setImageId(long value) {
-            this.imageId = value;
-        }
-        
-        public int getImageStatus() {
-            return imageStatus;
-        }
-
-        public void setImageStatus(int value) {
-            this.imageStatus = value;
-        }
-        
-        public String getErrorMessage() {
-            return errorMessage;
-        }
-
-        public void setErrorMessage(String value) {
-            this.errorMessage = value;
-        }
-        
-        public Date getLastUpdated()
-        {
-        	return this.lastUpdated;
-        }
-        
-        public void setLastUpdated(Date value)
-        {
-        	this.lastUpdated = value;
-        }
-    }
-    */
-    
+	public Date getFailedLogonLast()
+	{
+		return this.failedLogonLast;
+	}
+	
+	public void setFailedLogonLast(Date value)
+	{
+		this.failedLogonLast = value;
+	}
+	
+	public String getRemoteAddress()
+	{
+		return this.remoteAddress;
+	}
+	
+	public void setRemoteAddress(String value)
+	{
+		this.remoteAddress = value;
+	}
+	
+	
 }
