@@ -46,9 +46,21 @@ public class CachedData {
 			{
 				//Cache is out of date, so retrieve the latest.
 				platforms = utilityDataHelper.GetPlatformList();
+				if (platforms == null || platforms.size() < 1)
+					meLogger.error("No platforms could be retrieved from the database");
+				
 				apps = utilityDataHelper.GetAppList();
+				if (apps == null || apps.size() < 1)
+					meLogger.error("No apps could be retrieved from the database");
+				
 				styles = utilityDataHelper.GetStyleList();
+				if (styles == null || styles.size() < 1)
+					meLogger.error("No styles could be retrieved from the database");
+				
 				presentations = utilityDataHelper.GetPresentationList();
+				if (presentations == null || presentations.size() < 1)
+					meLogger.error("No presentations could be retrieved from the database");
+				
 				Calendar calNow = Calendar.getInstance();
 				cacheUpdateTime.setTime(calNow.getTimeInMillis());
 				
@@ -134,10 +146,6 @@ public class CachedData {
 			CheckAndUpdateCache();
 			return styles;
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetStyleList", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally { UserTools.LogMethod("GetStyleList", meLogger, startMS, ""); }
 	}
 	
@@ -158,10 +166,7 @@ public class CachedData {
 				}
 			}
 			
-			//Presentation not found so raise an exception
-			String error = "Style is not valid.  StyleId:" + styleId;
-			meLogger.error(error);
-			throw new WallaException("CachedData", "GetStyle", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
 		}
 		finally { UserTools.LogMethod("GetApp", meLogger, startMS, ""); }
 	}
@@ -194,10 +199,7 @@ public class CachedData {
 				}
 			}
 			
-			//Presentation not found so raise an exception
-			String error = "Presentation is not valid.  PresentationId:" + presentationId;
-			meLogger.error(error);
-			throw new WallaException("CachedData", "GetPresentation", error, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			return null;
 		}
 		finally { UserTools.LogMethod("GetPresentation", meLogger, startMS, String.valueOf(presentationId)); }
 	}

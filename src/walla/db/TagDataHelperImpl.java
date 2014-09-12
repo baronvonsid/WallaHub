@@ -1,6 +1,7 @@
 package walla.db;
 
 import javax.sql.DataSource;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -45,6 +46,7 @@ public class TagDataHelperImpl implements TagDataHelper {
 	
 	public void CreateTag(long userId, Tag newTag, long newId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		String sql = "INSERT INTO [Tag] ([TagId],[Name],[Description],[SystemOwned], "
 				+ "[DefinitionId],[ImageCount],[LastUpdated],[RecordVersion],[UserId]) "
 				+ "VALUES (?,?,?,?,0,0,dbo.GetDateNoMS(),1,?)";
@@ -54,19 +56,14 @@ public class TagDataHelperImpl implements TagDataHelper {
 		PreparedStatement bs = null;
 
 		try {			
-			int controlCount = 0;
 			int returnCount = 0;
-			long newTagId = newId;
-			int[] responseCounts = null;
-			
-			meLogger.debug("CreateTag() begins. UserId:" + userId + " TagName:" + newTag.getName());
 			
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
 			//Insert main tag record.
 			ps = conn.prepareStatement(sql);
-			ps.setLong(1, newTagId);
+			ps.setLong(1, newId);
 			ps.setString(2, newTag.getName());
 			ps.setString(3, newTag.getDesc());
 			ps.setBoolean(4, newTag.isSystemOwned());
@@ -84,32 +81,28 @@ public class TagDataHelperImpl implements TagDataHelper {
 				throw new WallaException(this.getClass().getName(), "CreateTag", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 				
 			}
 
-			meLogger.debug("CreateTag() ends. UserId:" + userId + " TagName:" + newTag.getName());
-			
 			conn.commit();
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateTag", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in CreateTag", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
 	        if (bs != null) try { bs.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateTag", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public void UpdateTag(long userId, Tag existingTag) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -143,24 +136,23 @@ public class TagDataHelperImpl implements TagDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateTag", sqlEx);
-			throw new WallaException(sqlEx, 0);
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateTag", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateTag", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public void DeleteTag(long userId, long tagId, int version, String tagName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		Statement us = null;
@@ -206,26 +198,27 @@ public class TagDataHelperImpl implements TagDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in DeleteTag", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
 		catch (WallaException wallaEx) {
 			throw wallaEx;
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in DeleteTag", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (us != null) try { if (!us.isClosed()) {us.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("DeleteTag", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	public void DeleteTagReferences(long tagId) throws WallaException
+	public void DeleteTagReferences(long userId, long tagId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement us = null;
 		
@@ -233,8 +226,8 @@ public class TagDataHelperImpl implements TagDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 
-			String deleteImagesSql = "DELETE FROM [TagImage] WHERE [TagId]=" + tagId; 
-			String deleteGalleryTagsSql = "DELETE FROM [GalleryTag] WHERE [TagId]=" + tagId; 
+			String deleteImagesSql = "DELETE FROM [TagImage] WHERE [TagId]=" + tagId + " AND UserId=" + userId; 
+			String deleteGalleryTagsSql = "DELETE FROM [GalleryTag] WHERE [TagId]=" + tagId + " AND UserId=" + userId;
 			us = conn.createStatement();
 			us.addBatch(deleteImagesSql);
 			us.addBatch(deleteGalleryTagsSql);
@@ -245,23 +238,24 @@ public class TagDataHelperImpl implements TagDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateTagTimestamp", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateTagTimestamp", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (us != null) try { if (!us.isClosed()) {us.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("DeleteTagReferences", meLogger, startMS, String.valueOf(userId));
 		}
 		
 	}
 	
 	public Tag GetTagMeta(long userId, String tagName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -298,23 +292,21 @@ public class TagDataHelperImpl implements TagDataHelper {
 			
 			return tag;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTagMeta", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTagMeta", ex);
-			throw new WallaException(ex, 0);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTagMeta", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public ImageList GetTagImageListMeta(long userId, String tagName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -335,9 +327,8 @@ public class TagDataHelperImpl implements TagDataHelper {
 			if (!resultset.next())
 			{
 				resultset.close();
-				String error = "Select statement didn't return any records.";
-				meLogger.error(error);
-				throw new WallaException("TagDataHelperImpl", "GetTagImageListMeta", error, 0); 
+				meLogger.warn("Select statement didn't return any records.");
+				return null;
 			}
 			
 			tagImageList = new ImageList();
@@ -358,26 +349,21 @@ public class TagDataHelperImpl implements TagDataHelper {
 			resultset.close();
 			return tagImageList;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTagImageListMeta", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException ex) {
+			meLogger.error(ex);
+			return null;
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTagImageListMeta", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTagImageListMeta", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public Date LastTagListUpdate(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -402,36 +388,34 @@ public class TagDataHelperImpl implements TagDataHelper {
 			return utilDate;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in LastTagListUpdate", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in LastTagListUpdate", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("LastTagListUpdate", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
-	//TODO Add search params + change image status
-	public int GetTotalImageCount(long tagId) throws WallaException
+	public int xxxGetTotalImageCount(long userId, long tagId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
 		
-		try {			
+		try {
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT COUNT(*) "
+			String selectSql = "SELECT COUNT(1) "
 								+ "FROM TagImage ti INNER JOIN Image i ON ti.ImageId = i.ImageId INNER JOIN ImageMeta im ON i.ImageId = im.ImageId "
-								+ "WHERE ti.[TagId] = ? AND i.Status = 4";
+								+ "WHERE ti.[TagId] = ? AND i.UserId = ? AND i.Status = 4";
 			
 			ps = conn.prepareStatement(selectSql);
 			ps.setLong(1, tagId);
+			ps.setLong(1, userId);
 			
 			resultset = ps.executeQuery();
 			if (resultset.next())
@@ -442,30 +426,24 @@ public class TagDataHelperImpl implements TagDataHelper {
 			{
 				String error = "Select statement didn't return any records, in GetTotalImageCount.";
 				meLogger.error(error);
-				throw new WallaException("TagDataHelperImpl", "GetTotalImageCount", error, 0); 
+				throw new WallaException("TagDataHelperImpl", "GetTotalImageCount", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTotalImageCount", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTotalImageCount", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTotalImageCount", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	// TODO Add search facility
 	public void GetTagImages(long userId, int imageCursor, int imageCount, ImageList tagImageList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -531,32 +509,24 @@ public class TagDataHelperImpl implements TagDataHelper {
 			}
 			resultset.close();
 			
-			if (tagImageList.getImages().getImageRef().size() == 0)
-			{
-				meLogger.info("Select statement didn't return any records.");
-				//throw new WallaException("TagDataHelperImpl", "GetTagImages", error, 0); 
-			}
-			
 			tagImageList.setImageCount(tagImageList.getImages().getImageRef().size());
 			tagImageList.setImageCursor(imageCursor);
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTagImages", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTagImages", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTagImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public TagList GetUserTagList(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -590,22 +560,20 @@ public class TagDataHelperImpl implements TagDataHelper {
 			return tagList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetUserTagList", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetUserTagList", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetUserTagList", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public void UpdateTagTimeAndCount(long userId, long tagId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement us = null;
 		
@@ -636,25 +604,23 @@ public class TagDataHelperImpl implements TagDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateTagTimestamp", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateTagTimestamp", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (us != null) try { if (!us.isClosed()) {us.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateTagTimeAndCount", meLogger, startMS, String.valueOf(userId));
 		}
 	}	
 
 	public void AddRemoveTagImages(long userId, long tagId, ImageIdList moveList, boolean add) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement bs = null;
 
@@ -662,8 +628,6 @@ public class TagDataHelperImpl implements TagDataHelper {
 			int controlCount = 0;
 			int returnCount = 0;
 			int[] responseCounts = null;
-			
-			meLogger.debug("AddRemoveTagImages() begins. UserId:" + userId + " TagId:" + tagId);
 			
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
@@ -718,32 +682,27 @@ public class TagDataHelperImpl implements TagDataHelper {
 					}
 				}
 			}
-			
-			meLogger.debug("AddRemoveTagImages() ends. UserId:" + userId + " TagId:" + tagId);
-			
 			conn.commit();
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in AddRemoveTagImages", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in AddRemoveTagImages", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (bs != null) try { bs.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("AddRemoveTagImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public long[] GetGalleriesLinkedToTag(long userId, long tagId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -775,47 +734,41 @@ public class TagDataHelperImpl implements TagDataHelper {
 			return galleryIds;			
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleriesLinkedToTag", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleriesLinkedToTag", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleriesLinkedToTag", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public long[] ReGenDynamicTags(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
 		
 		try {			
 			conn = dataSource.getConnection();
+			conn.setAutoCommit(true);
 
 			String executeSql = "EXECUTE dbo.[ReGenDynamicTags] " + userId;
 
 			statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 			int size = 0;
 			
+			resultset = statement.executeQuery(executeSql);
 			try
 			{
-				resultset = statement.executeQuery(executeSql);
-
-				
 				resultset.last();
 			    size = resultset.getRow();
 			    resultset.beforeFirst();
 			}
-			catch(Exception ex) 
-			{
-				String test = ex.getMessage();
-			}
+			catch(Exception ex) {}
 			
 			long[] returnTagId = new long[size];
 			for (int i = 0; i < size; i++)
@@ -827,74 +780,14 @@ public class TagDataHelperImpl implements TagDataHelper {
 			return returnTagId;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in ReGenDynamicTags", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error( sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in ReGenDynamicTags", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("ReGenDynamicTags", meLogger, startMS, String.valueOf(userId));
 		}
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	}	
 }
-
-
-//TODO delete.
-/*
-public int xxxGetPlatformImageCount(long platformId) throws WallaException
-{
-	Connection conn = null;
-	Statement sQuery = null;
-	ResultSet resultset = null;
-	
-	try {			
-		conn = dataSource.getConnection();
-		
-		String selectSql = "SELECT [ListNumber] FROM [Platform] WHERE [PlatformId]=" + platformId;
-		
-		sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-		resultset = sQuery.executeQuery(selectSql);
-		if (resultset.next())
-		{
-			return resultset.getInt(1);
-		}
-		else
-		{
-			String error = "GetPlatformImageCount didn't return an image count.  PlatformId: " + platformId;
-			meLogger.error(error);
-			throw new WallaException("TagDataHelperImpl", "GetPlatformImageCount", error, 0);
-		}
-	}
-	catch (SQLException sqlEx) {
-		meLogger.error("Unexpected SQLException in GetPlatformImageCount", sqlEx);
-		throw new WallaException(sqlEx,0);
-	} 
-	catch (Exception ex) {
-		meLogger.error("Unexpected Exception in GetPlatformImageCount", ex);
-		throw new WallaException(ex, 0);
-	}
-	finally {
-		if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
-        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
-        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
-	}
-}
-*/

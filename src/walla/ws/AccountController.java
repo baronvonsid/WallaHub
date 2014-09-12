@@ -53,12 +53,12 @@ import walla.utils.*;
 	AckEmailConfirm() GET /{profileName}/{validationString}
 	CheckProfileName() GET /profilename/{profileName}
 	
-	CreateUpdateUserApp() PUT /{userName}/userapp
-	GetUserAppMarkSession() GET /{userName}/userapp/{userAppId}
+	CreateUpdateUserApp() PUT /{profileName}/userapp
+	GetUserAppMarkSession() GET /{profileName}/userapp/{userAppId}
 	
 	CheckClientApp() POST /clientapp
 	SetClientApp PUT /{profileName}/clientapp
-	GetLogonToken() GET /logontoken
+	GetLogonToken() POST /logontoken
 	Logon() POST /logon
 	Logout() POST /logout
 	
@@ -222,7 +222,7 @@ public class AccountController {
 			meLogger.error(ex);
 			return null;
 		}
-		finally { UserTools.LogWebMethod("Logon", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
+		finally { UserTools.LogWebMethod("GetAccount", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
 	//  GET - /{profileName}/email?valid={validationString}
@@ -251,7 +251,7 @@ public class AccountController {
 	}
 
 	//  PUT /{profileName}/userapp
-	@RequestMapping(value = { "/{userName}/userapp" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/userapp" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody String CreateUpdateUserApp(
 			@PathVariable("profileName") String profileName,
@@ -353,8 +353,7 @@ public class AccountController {
 			return userApp;
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in GetUserAppMarkSession", ex);
-			response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 			return null;
 		}
 		finally { UserTools.LogWebMethod("GetUserAppMarkSession", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
@@ -484,13 +483,13 @@ public class AccountController {
 			responseCode = HttpStatus.OK.value();
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in CheckAndSetClientApp", ex);
+			meLogger.error(ex);
 		}
 		finally { UserTools.LogWebMethod("CheckClientApp", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	//GET /logontoken
-	@RequestMapping(value="/logontoken", method=RequestMethod.GET, produces=MediaType.APPLICATION_XML_VALUE,
+	//POST /logontoken
+	@RequestMapping(value="/logontoken", method=RequestMethod.POST, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody Logon GetLogonToken(
 			@RequestBody Logon logon,
@@ -657,7 +656,7 @@ public class AccountController {
 			}
 			
 			response.setStatus(HttpStatus.OK.value());
-			return  "UserName:" + customSession.getProfileName() + 
+			return  "ProfileName:" + customSession.getProfileName() + 
 					" UserID:" + customSession.getUserId() +
 					" PlatformId:" + customSession.getPlatformId() +
 					" AppId:" + customSession.getAppId() +

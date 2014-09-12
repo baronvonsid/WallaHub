@@ -1,6 +1,7 @@
 package walla.db;
 
 import javax.sql.DataSource;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -41,9 +42,9 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		this.dataSource = dataSource;
 	}
 
-
-	public UploadStatusList GetCurrentUploads(long userId, ImageIdList imageIdToCheck) throws WallaException
+	public UploadStatusList GetCurrentUploads(long userId, ImageIdList imageIdToCheck)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -56,18 +57,12 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			
 			for (int i = 0; i < imageIdToCheck.getImageRef().size(); i++)
 			{
-				//if (imageIdToCheck.getImageRef().get(i) > 0)
-				//{
-					if (i==0)
-					{
-						addImages = Long.toString(imageIdToCheck.getImageRef().get(i));
-					}
-					else
-					{
-						addImages = addImages + "," + Long.toString(imageIdToCheck.getImageRef().get(i));
-					}
-					hasIds = true;
-				//}
+				if (i==0)
+					addImages = Long.toString(imageIdToCheck.getImageRef().get(i));
+				else
+					addImages = addImages + "," + Long.toString(imageIdToCheck.getImageRef().get(i));
+
+				hasIds = true;
 			}
 			
 			if (hasIds)
@@ -107,23 +102,21 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 
 			return currentUploads;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCurrentUploads", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCurrentUploads", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCurrentUploads", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public void MarkImagesAsInactive(long userId, ImageList imagesToDelete) throws WallaException 
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -135,74 +128,66 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
-			if (imagesToDelete.getImages() != null)
+			if (imagesToDelete.getImages() != null && imagesToDelete.getImages().getImageRef().size() > 0)
 			{
-			
-				if (imagesToDelete.getImages().getImageRef().size() > 0)
+				controlCount = 0;
+				returnCount = 0;
+				
+				String deleteSql = "UPDATE [Image] SET [Status] = 5,[RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS() WHERE [ImageId]= ? AND [UserId] = ?"; 
+			    ps = conn.prepareStatement(deleteSql);			   
+			    
+				//Construct update SQL statements
+				for (Iterator<ImageList.Images.ImageRef> imageIterater = imagesToDelete.getImages().getImageRef().iterator(); imageIterater.hasNext();)
 				{
-					controlCount = 0;
-					returnCount = 0;
+					ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
 					
-					String deleteSql = "UPDATE [Image] SET [Status] = 5,[RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS() WHERE [ImageId]= ? AND [UserId] = ?"; 
-				    ps = conn.prepareStatement(deleteSql);			   
-				    
-					//Construct update SQL statements
-					for (Iterator<ImageList.Images.ImageRef> imageIterater = imagesToDelete.getImages().getImageRef().iterator(); imageIterater.hasNext();)
-					{
-						ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
-						
-						ps.setLong(1,currentImageRef.getId());
-						ps.setLong(2,userId);
-						ps.addBatch();
+					ps.setLong(1,currentImageRef.getId());
+					ps.setLong(2,userId);
+					ps.addBatch();
 
-						controlCount++;
-					}
-					
-					//Perform updates.
-					responseCounts = ps.executeBatch();
-					for (int i = 0; i < responseCounts.length; i++)
-					{
-						returnCount = returnCount + responseCounts[i];
-					}
-					
-					ps.close();
-					
-					//Check for unexpected row update count in the database
-					if (returnCount != controlCount)
-					{
-						conn.rollback();
-						String error = "Row count update didn't match with number of new imageref objects to be deleted";
-						meLogger.error(error);
-						throw new WallaException("ImageDataHelperImpl", "MarkImageAsInactive", error, HttpStatus.CONFLICT.value()); 
-					}
-					else
-					{
-						conn.commit();
-					}
+					controlCount++;
 				}
+				
+				//Perform updates.
+				responseCounts = ps.executeBatch();
+				for (int i = 0; i < responseCounts.length; i++)
+				{
+					returnCount = returnCount + responseCounts[i];
+				}
+				
+				ps.close();
+				
+				//Check for unexpected row update count in the database
+				if (returnCount != controlCount)
+				{
+					conn.rollback();
+					String error = "Row count update didn't match with number of new imageref objects to be deleted";
+					meLogger.error(error);
+					throw new WallaException("ImageDataHelperImpl", "MarkImageAsInactive", error, HttpStatus.CONFLICT.value()); 
+				}
+
+				conn.commit();
 			}
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in MarkImageAsInactive", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in MarkImageAsInactive", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("MarkImagesAsInactive", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	public ImageList GetActiveImagesInCategories(long userId, long[] categoryIds) throws WallaException
+	public ImageList GetActiveImagesInCategories(long userId, long[] categoryIds)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
@@ -240,22 +225,20 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			return deleteImageList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetActiveImagesInCategories", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetActiveImagesInCategories", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetActiveImagesInCategories", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	public ImageMeta GetImageMeta(long userId, long imageId) throws WallaException 
+	public ImageMeta GetImageMeta(long userId, long imageId)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement psMeta = null;
 		ResultSet rsMeta = null;
@@ -376,25 +359,23 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 			
 			return image;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetImageMeta", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetImageMeta", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (rsMeta != null) try { if (!rsMeta.isClosed()) {rsMeta.close();} } catch (SQLException logOrIgnore) {}
 			if (psMeta != null) try { if (!psMeta.isClosed()) {psMeta.close();} } catch (SQLException logOrIgnore) {}
 			if (rsTag != null) try { if (!rsTag.isClosed()) {rsTag.close();} } catch (SQLException logOrIgnore) {}
 			if (psTag != null) try { if (!psTag.isClosed()) {psTag.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetImageMeta", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(imageId));
 		}
 	}
 
 	public void CreateImage(long userId, ImageMeta newImage) throws WallaException 
 	{
+		long startMS = System.currentTimeMillis();
 		String sqlImage = "INSERT INTO [Image] ([ImageId],[CategoryId],[Name],[Description],[OriginalFileName],[Format],[Status],"
 				+ "[RecordVersion],[LastUpdated],[UserAppId],[Error],[UserId]) "
 				+ "VALUES (?,?,?,?,?,?,?,?,dbo.GetDateNoMS(),?,0,?)";
@@ -410,9 +391,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		PreparedStatement psMeta = null;
 		PreparedStatement bsTagInsert = null;
 
-		try {			
-			meLogger.debug("CreateImage" + userId + " ImageId:" + newImage.getId());
-			
+		try
+		{			
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
@@ -505,35 +485,30 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 					bsTagInsert.executeBatch();
 				}
 			}
-			
-			meLogger.debug("CreateImage() ends. UserId:" + userId + " ImageId:" + newImage.getId());
-			
+
 			conn.commit();
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateImage", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in CreateImage", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (psImage != null) try { psImage.close(); } catch (SQLException logOrIgnore) {}
 	        if (psMeta != null) try { psMeta.close(); } catch (SQLException logOrIgnore) {}
 	        if (bsTagInsert != null) try { bsTagInsert.close(); } catch (SQLException logOrIgnore) {}
-	        
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateImage", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public void UpdateImage(long userId, ImageMeta existingImage) throws WallaException 
 	{
+		long startMS = System.currentTimeMillis();
 		String sqlImage = "UPDATE [Image] SET [Name] = ?,[Description] = ?, [RecordVersion] = [RecordVersion] + 1, [LastUpdated] = dbo.GetDateNoMS() "
 				+ "WHERE [ImageId] = ? AND [UserId] = ? AND [RecordVersion]= ?";
 						
@@ -550,9 +525,8 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		PreparedStatement bsTagInsert = null;
 		PreparedStatement bsTagDelete = null;
 		
-		try {			
-			meLogger.debug("UpdateImage" + userId + " ImageId:" + existingImage.getId());
-			
+		try 
+		{			
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
@@ -676,23 +650,17 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 					bsTagDelete.executeBatch();
 				}
 			}
-			
-			meLogger.debug("UpdateImage() ends. UserId:" + userId + " ImageId:" + existingImage.getId());
-			
+
 			conn.commit();
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateImage", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in UpdateImage", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (psImage != null) try { psImage.close(); } catch (SQLException logOrIgnore) {}
@@ -700,11 +668,13 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 	        if (bsTagInsert != null) try { bsTagInsert.close(); } catch (SQLException logOrIgnore) {}
 	        if (bsTagDelete != null) try { bsTagDelete.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateImage", meLogger, startMS, String.valueOf(userId));
 		}		
 	}
 	
 	public long[] GetTagsLinkedToImages(long userId, ImageList imageList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
@@ -712,64 +682,59 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			if (imageList.getImages() != null)
+			if (imageList.getImages() != null && imageList.getImages().getImageRef().size() > 0)
 			{
-				if (imageList.getImages().getImageRef().size() > 0)
-				{
-					String sql = "SELECT DISTINCT TI.TagId FROM TagImage TI INNER JOIN Tag T ON TI.TagId = T.TagId "
-							+ "WHERE T.UserId=" + userId + " AND TI.ImageId IN (";
-					
-					statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+				String sql = "SELECT DISTINCT TI.TagId FROM TagImage TI INNER JOIN Tag T ON TI.TagId = T.TagId "
+						+ "WHERE T.UserId=" + userId + " AND TI.ImageId IN (";
+				
+				statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
-					//Construct update IN statement
-					for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
-					{
-						ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
-						sql = sql + currentImageRef.getId() + ",";
-					}
-					
-					sql = sql.substring(0, sql.length()-1) + ")";
-					
-					resultset = statement.executeQuery(sql);
-					
-					int size = 0;
-					try {
-						resultset.last();
-					    size = resultset.getRow();
-					    resultset.beforeFirst();
-					}
-					catch(Exception ex) {}
-					
-					long[] tagIds = new long[size];
-					for (int i = 0; i < size; i++)
-					{
-						resultset.next();
-						tagIds[i] = resultset.getLong(1);
-					}
-					
-					resultset.close();
-					return tagIds;	
+				//Construct update IN statement
+				for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
+				{
+					ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
+					sql = sql + currentImageRef.getId() + ",";
 				}
+				
+				sql = sql.substring(0, sql.length()-1) + ")";
+				
+				resultset = statement.executeQuery(sql);
+				
+				int size = 0;
+				try {
+					resultset.last();
+				    size = resultset.getRow();
+				    resultset.beforeFirst();
+				}
+				catch(Exception ex) {}
+				
+				long[] tagIds = new long[size];
+				for (int i = 0; i < size; i++)
+				{
+					resultset.next();
+					tagIds[i] = resultset.getLong(1);
+				}
+				
+				resultset.close();
+				return tagIds;	
 			}
 			return new long[0];
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTagsLinkedToImages", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTagsLinkedToImages", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTagsLinkedToImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public long[] GetCategoriesLinkedToImages(long userId, ImageList imageList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
@@ -777,66 +742,60 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 			
-			if (imageList.getImages() != null)
+			if (imageList.getImages() != null && imageList.getImages().getImageRef().size() > 0)
 			{
-				if (imageList.getImages().getImageRef().size() > 0)
-				{
-					String sql = "SELECT DISTINCT C.CategoryId FROM Category C INNER JOIN Image I ON C.CategoryId = I.CategoryId "
-							+ "WHERE C.UserId=" + userId + " AND C.[Active] = 1 AND I.ImageId IN (";
-					
-					statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+				String sql = "SELECT DISTINCT C.CategoryId FROM Category C INNER JOIN Image I ON C.CategoryId = I.CategoryId "
+						+ "WHERE C.UserId=" + userId + " AND C.[Active] = 1 AND I.ImageId IN (";
+				
+				statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
-					//Construct update IN statement
-					for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
-					{
-						ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
-						sql = sql + currentImageRef.getId() + ",";
-					}
-					
-					sql = sql.substring(0, sql.length()-1) + ")";
-					
-					resultset = statement.executeQuery(sql);
-					
-					int size = 0;
-					try {
-						resultset.last();
-					    size = resultset.getRow();
-					    resultset.beforeFirst();
-					}
-					catch(Exception ex) {}
-					
-					long[] categoryIds = new long[size];
-					for (int i = 0; i < size; i++)
-					{
-						resultset.next();
-						categoryIds[i] = resultset.getLong(1);
-					}
-					
-					resultset.close();
-					return categoryIds;	
+				//Construct update IN statement
+				for (Iterator<ImageList.Images.ImageRef> imageIterater = imageList.getImages().getImageRef().iterator(); imageIterater.hasNext();)
+				{
+					ImageList.Images.ImageRef currentImageRef = (ImageList.Images.ImageRef)imageIterater.next();
+					sql = sql + currentImageRef.getId() + ",";
 				}
+				
+				sql = sql.substring(0, sql.length()-1) + ")";
+				
+				resultset = statement.executeQuery(sql);
+				
+				int size = 0;
+				try {
+					resultset.last();
+				    size = resultset.getRow();
+				    resultset.beforeFirst();
+				}
+				catch(Exception ex) {}
+				
+				long[] categoryIds = new long[size];
+				for (int i = 0; i < size; i++)
+				{
+					resultset.next();
+					categoryIds[i] = resultset.getLong(1);
+				}
+				
+				resultset.close();
+				return categoryIds;	
 			}
 			return new long[0];
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoriesLinkedToImages", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoriesLinkedToImages", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoriesLinkedToImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public void UpdateImageStatus(long userId, long imageId, int status, boolean error, String errorMessage) throws WallaException
 	{
 		//check new status is previous status + 1.
-		
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		String updateSql = "";
@@ -888,20 +847,17 @@ public class ImageDataHelperImpl implements ImageDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateImageStatus", sqlEx);
-			throw new WallaException(sqlEx);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateImageStatus", ex);
-			throw new WallaException(ex);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateImageStatus", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(imageId));
 		}
 	}
 	

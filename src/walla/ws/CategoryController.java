@@ -40,13 +40,13 @@ import walla.utils.*;
 
 	/*
 	
-	CreateCategory() POST /{userName}/category
-	UpdateCategory() PUT /{userName}/category/{categoryId}
-	DeleteCategory() DELETE /{userName}/category/{categoryId}
-	GetCategoryMeta() GET /{userName}/category/{categoryId}
+	CreateCategory() POST /{profileName}/category
+	UpdateCategory() PUT /{profileName}/category/{categoryId}
+	DeleteCategory() DELETE /{profileName}/category/{categoryId}
+	GetCategoryMeta() GET /{profileName}/category/{categoryId}
 	
-	GetCategoryList() GET /{userName}/categories
-	MoveToNewCategory() PUT {userName}/category/{categoryId}/images	
+	GetCategoryList() GET /{profileName}/categories
+	MoveToNewCategory() PUT {profileName}/category/{categoryId}/images	
 	
 	*/
 
@@ -62,237 +62,217 @@ public class CategoryController {
 	@Autowired
 	private CategoryService categoryService;
 	
-	// POST /{userName}/category
+	// POST /{profileName}/category
 	//no client cache, no server cache
-	@RequestMapping(value = { "/{userName}/category" }, method = { RequestMethod.POST }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/category" }, method = { RequestMethod.POST }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody String CreateCategory(
 			@RequestBody Category newCategory,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateCategory request received, User: " + userName + ", Category:" + newCategory.getName());}
+			response.addHeader("Cache-Control", "no-cache");
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return null;
 			}
 	
 			CustomResponse customResponse = new CustomResponse();
-			long newCategoryId = categoryService.CreateCategory(userId, newCategory, customResponse);
+			long newCategoryId = categoryService.CreateCategory(customSession.getUserId(), newCategory, customResponse);
 	
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateCategory request completed, User:" + userName.toString() + ", Category:" + newCategory.getName() + " Response code: " + customResponse.getResponseCode());}
+			responseCode = customResponse.getResponseCode();
 			return "<CategoryId>" + newCategoryId + "</CategoryId>";
-			
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in CreateCategory", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			return "0";
+			meLogger.error(ex);
+			return null;
 		}
+		finally { UserTools.LogWebMethod("CreateCategory", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	// PUT /{userName}/category/{categoryId}
+	// PUT /{profileName}/category/{categoryId}
 	//no client cache, no server cache
-	@RequestMapping(value = { "/{userName}/category/{categoryId}" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/category/{categoryId}" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void UpdateCategory(
 			@RequestBody Category newCategory,
-			@PathVariable("userName") String userName,
+			@PathVariable("profileName") String profileName,
 			@PathVariable("categoryId") long categoryId,
-			HttpServletResponse httpResponse)
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("UpdateCategory request received, User: " + userName + ", CategoryId:" + categoryId);}
+			response.addHeader("Cache-Control", "no-cache");
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return;
 			}
 	
-			int responseCode = categoryService.UpdateCategory(userId, newCategory, categoryId);
-	
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(responseCode);
-			if (meLogger.isDebugEnabled()) {meLogger.debug("UpdateCategory request completed, User:" + userName.toString() + ", CategoryId:" + categoryId + " Response code: " + responseCode);}
+			responseCode = categoryService.UpdateCategory(customSession.getUserId(), newCategory, categoryId);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in UpdateCategory", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
+			return;
 		}
+		finally { UserTools.LogWebMethod("UpdateCategory", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	// DELETE /{userName}/category/{categoryId}
+	// DELETE /{profileName}/category/{categoryId}
 	// no client cache, no server cache
-	@RequestMapping(value = { "/{userName}/category/{categoryId}" }, method = { RequestMethod.DELETE } , 
+	@RequestMapping(value = { "/{profileName}/category/{categoryId}" }, method = { RequestMethod.DELETE } , 
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void DeleteCategory(
 			@RequestBody Category existingCategory, 
 			@PathVariable("categoryId") long categoryId,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Delete category request received, User:" + userName.toString() + ", CategoryId:" + categoryId);}
-	
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+			
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return;
 			}
 	
-			int responseCode = categoryService.DeleteCategory(userId, existingCategory, categoryId);
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(responseCode);
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Delete category request completed, User:" + userName.toString() + ", CategoryId:" + categoryId);}
+			responseCode = categoryService.DeleteCategory(customSession.getUserId(), existingCategory, categoryId);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in DeleteCategory", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
+			return;
 		}
+		finally { UserTools.LogWebMethod("DeleteCategory", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	//  GET - /{userName}/category/{categoryId}
+	//  GET - /{profileName}/category/{categoryId}
 	//  No client caching.  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/category/{categoryId}", method=RequestMethod.GET, 
+	@RequestMapping(value="/{profileName}/category/{categoryId}", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody Category GetCategoryMeta(
 			@PathVariable("categoryId") long categoryId,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
-	{	
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
+	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetCategoryMeta request received, User:" + userName.toString() + ", CategoryId:" + categoryId);}
+			response.addHeader("Cache-Control", "no-cache");
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return null;
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			Category responseCategory = categoryService.GetCategoryMeta(userId, categoryId, customResponse);
+			Category responseCategory = categoryService.GetCategoryMeta(customSession.getUserId(), categoryId, customResponse);
+			responseCode = customResponse.getResponseCode();
 			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetCategoryMeta request completed, User:" + userName.toString() + ", CategoryId:" + categoryId);}
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
 			return responseCategory;
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in GetCategoryMeta", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 			return null;
 		}
+		finally { UserTools.LogWebMethod("GetCategoryMeta", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	//  GET /{userName}/categories
+	//  GET /{profileName}/categories
 	//  No client caching.  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/categories", method=RequestMethod.GET, 
+	@RequestMapping(value="/{profileName}/categories", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody CategoryList GetCategoryList(
-			@PathVariable("userName") String userName,
-			HttpServletRequest requestObject,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		Date clientVersionTimestamp = null;
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get category list for a user request received, User:" + userName.toString());}
+			response.addHeader("Cache-Control", "no-cache");
 
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return null;
 			}
 			
-			long headerDateLong = requestObject.getDateHeader("If-Modified-Since");
+			long headerDateLong = request.getDateHeader("If-Modified-Since");
 			if (headerDateLong > 0)
 			{
 				clientVersionTimestamp = new Date(headerDateLong);
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			CategoryList categoryList = categoryService.GetCategoryListForUser(userId, clientVersionTimestamp, customResponse);
-	
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get category list for a user completed, User:" + userName.toString());}
+			CategoryList categoryList = categoryService.GetCategoryListForUser(customSession.getUserId(), clientVersionTimestamp, customResponse);
+			responseCode = customResponse.getResponseCode();
 			
 			return categoryList;
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in GetCategoryList", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 			return null;
 		}
+		finally { UserTools.LogWebMethod("GetCategoryList", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	// PUT {userName}/category/{categoryId}/images
+	// PUT {profileName}/category/{categoryId}/images
 	// No client caching
-	@RequestMapping(value = { "/{userName}/category/{categoryId}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/category/{categoryId}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void MoveToNewCategory(
 			@RequestBody ImageIdList imageIdList,
 			@PathVariable("categoryId") long categoryId,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("MoveToNewCategory request received, User: " + userName + ", CategoryId:" + categoryId);}
-	
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+			
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return;
 			}
 	
-			int responseCode = categoryService.MoveToNewCategory(userId, categoryId, imageIdList);
-	
-			httpResponse.setStatus(responseCode);
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("MoveToNewCategory request completed, User:" + userName.toString() + ", CategoryId:" + categoryId + " Responce code: " + responseCode);}
+			responseCode = categoryService.MoveToNewCategory(customSession.getUserId(), categoryId, imageIdList);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in MoveToNewCategory", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 		}
+		finally { UserTools.LogWebMethod("MoveToNewCategory", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 
 }
-
-
-/*
-
-Views
-
-CreateUpdateView() PUT /{userName}/view/{tagName}
-DeleteView() DELETE /{userName}/view/{tagName}
-GetViewMeta() GET /{userName}/view/{tagName}
-GetViewImageList() GET /{userName}/view/{viewName}/{platformId}/{imageCursor}/Filter=?{selection Parameters}
-GetViewsAvailable() GET /{userName}/views
-
-*/
-
 

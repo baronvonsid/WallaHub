@@ -36,18 +36,13 @@ public class CategoryService {
 	
 	public long CreateCategory(long userId, Category newCategory, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			
-			meLogger.debug("CreateCategory() begins. UserId:" + userId);
-			
-			//TODO Check User is logged in with Write permission
-			//HttpStatus.UNAUTHORIZED.value()
-			
 			if (newCategory.getParentId() == 0)
 			{
-				String error = "CreateUpdateCategory failed, root category cannot be used in this context.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "CreateCategory", error, HttpStatus.BAD_REQUEST.value());
+				meLogger.warn("CreateUpdateCategory failed, root category cannot be used in this context.");
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return 0;
 			}
 			
 			//New Category
@@ -58,55 +53,47 @@ public class CategoryService {
 			//TODO decouple this method.  Don't think we need.
 			//CategoryRippleUpdate(userId, categoryId);
 			
-			meLogger.debug("CreateCategory() has completed. UserId:" + userId + " CategoryId:" + categoryId);
-
 			return categoryId;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateCategory");
-			if (wallaEx.getCustomStatus() == 0)
-			{ customResponse.setResponseCode(wallaEx.getCustomStatus()); }
-			else
-			{ customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value()); }
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return 0;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CreateCategory", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return 0;
 		}
+		finally {UserTools.LogMethod("CreateCategory", meLogger, startMS, String.valueOf(userId));}
 	}
 
 	public int UpdateCategory(long userId, Category newCategory, long categoryId)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			
-			meLogger.debug("UpdateCategory() begins. UserId:" + userId + " CategoryId:" + categoryId);
-			
-			//TODO Check User is logged in with Write permission
-			//HttpStatus.UNAUTHORIZED.value()
-			
 			if (newCategory.getParentId() == 0)
 			{
-				String error = "UpdateCategory failed, root category cannot be updated.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "UpdateCategory", error, HttpStatus.BAD_REQUEST.value());
+				meLogger.warn("UpdateCategory failed, root category cannot be updated.");
+				return HttpStatus.BAD_REQUEST.value();
 			}
 			
 			if (newCategory.getId() != categoryId)
 			{
-				String error = "UpdateCategory failed, category Ids don't match.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "UpdateCategory", error, HttpStatus.CONFLICT.value());
+				meLogger.warn("UpdateCategory failed, category Ids don't match.");
+				return HttpStatus.CONFLICT.value();
 			}
 			
 			Category existingCategory = categoryDataHelper.GetCategoryMeta(userId, categoryId);
+			if (existingCategory == null)
+			{
+				meLogger.warn("Couldn't return a valid Category object");
+				return HttpStatus.BAD_REQUEST.value();
+			}
 			
 			if (existingCategory.getVersion() != newCategory.getVersion())
 			{
-				String error = "Update Category failed, record versions don't match.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "UpdateCategory", error, HttpStatus.CONFLICT.value()); 
+				meLogger.warn("Update Category failed, record versions don't match.");
+				return HttpStatus.CONFLICT.value();
 			}
 
 			categoryDataHelper.UpdateCategory(userId, newCategory);
@@ -116,115 +103,93 @@ public class CategoryService {
 				//TODO decouple this method.
 				CategoryRippleUpdate(userId, categoryId);
 			}
-			
-			meLogger.debug("UpdateCategory() has completed. UserId:" + userId);
 
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process UpdateCategory");
-			if (wallaEx.getCustomStatus() == 0)
-				wallaEx.setCustomStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces UpdateCategory", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("UpdateCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
 	
 	public int DeleteCategory(long userId, Category category, long categoryId)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			meLogger.debug("DeleteCategory() begins. UserId:" + userId + " CategoryName:" + categoryId);
-			
 			if (category.getId() != categoryId)
 			{
-				String error = "DeleteCategory failed, category Ids don't match.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "DeleteCategory", error, HttpStatus.CONFLICT.value());
+				meLogger.warn("DeleteCategory failed, category Ids don't match.");
+				return HttpStatus.CONFLICT.value();
 			}
 
 			if (category.getParentId() == 0)
 			{
-				String error = "Delete Category failed, root category cannot be deleted.";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "DeleteCategory", error, HttpStatus.BAD_REQUEST.value());
+				meLogger.warn("Delete Category failed, root category cannot be deleted.");
+				return HttpStatus.BAD_REQUEST.value();
 			}
 			
 			long[] categoryIds = categoryDataHelper.GetCategoryHierachy(userId, categoryId, false);
 			
 			categoryDataHelper.MarkCategoryAsDeleted(userId, categoryIds, category);
-			
-			meLogger.debug("DeleteCategory() has completed. UserId:" + userId);
-			
+
 			//TODO decouple this method.
 			CategoryRippleDelete(userId, categoryIds);
 			
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process DeleteCategory");
-			if (wallaEx.getCustomStatus() == 0)
-				wallaEx.setCustomStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
-			
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces DeleteCategory", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("DeleteCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
 	
 	public Category GetCategoryMeta(long userId, long categoryId, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			//Check user can access category list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetCategoryMeta() begins. UserId:" + userId + " CategoryId:" + categoryId);
-			
-			//Get category list for response.
 			Category category = categoryDataHelper.GetCategoryMeta(userId, categoryId);
 			if (category == null)
 			{
-				String error = "GetCategoryMeta didn't return a valid Category object";
-				meLogger.error(error);
-				throw new WallaException("CategoryService", "GetCategoryMeta", error, HttpStatus.BAD_REQUEST.value()); 
+				meLogger.warn("GetCategoryMeta didn't return a valid Category object");
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value()); 
+				return null;
 			}
-			
-			meLogger.debug("GetCategoryMeta has completed. UserId:" + userId);
-			
+
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return category;
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetCategoryMeta", wallaEx);
-			customResponse.setResponseCode(wallaEx.getCustomStatus());
-			return null;
-		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetCategoryMeta",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetCategoryMeta", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
 	
 	public ImageList GetCategoryWithImages(long userId, long categoryId, int imageCursor, int size, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			//Check user can access category
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetCategoryWithImages() begins. UserId:" + userId + " CategoryId:" + categoryId);
-
 			ImageList categoryImageList = null;
 
 			//Get main category for response.
 			categoryImageList = categoryDataHelper.GetCategoryImageListMeta(userId, categoryId);
-
+			if (categoryImageList == null)
+			{
+				meLogger.warn("No category image list header could not be retrieved from the database.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
+			
 			//Check if category list changed
 			if (clientVersionTimestamp != null)
 			{
@@ -247,40 +212,39 @@ public class CategoryService {
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			
-			meLogger.debug("GetCategoryWithImages() has completed. UserId:" + userId);
 			return categoryImageList;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetCategoryWithImages");
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetCategoryWithImages", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetCategoryImageListMeta", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
 	
 	public CategoryList GetCategoryListForUser(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			//Check user can access category list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetCategoryListForUser() begins. UserId:" + userId);
-			
 			CategoryList categoryList = null;
 			Date lastUpdate = categoryDataHelper.LastCategoryListUpdate(userId);
-			
-			//lastUpdate.setTime(1000 * (lastUpdate.getTime() / 1000));
-			
+			if (lastUpdate == null)
+			{
+				meLogger.warn("Last updated date for category could not be retrieved.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
+
 			//Check if category list changed
 			if (clientVersionTimestamp != null)
 			{
 				if (!lastUpdate.after(clientVersionTimestamp) || lastUpdate.equals(clientVersionTimestamp))
 				{
-					meLogger.debug("No category list generated because server timestamp (" + lastUpdate.toString() + ") is not later than client timestamp (" + clientVersionTimestamp.toString() + ")");
+					if (meLogger.isDebugEnabled()) {meLogger.debug("No category list generated because server timestamp (" + lastUpdate.toString() + ") is not later than client timestamp (" + clientVersionTimestamp.toString() + ")");}
 					customResponse.setResponseCode(HttpStatus.NOT_MODIFIED.value());
 					return null;
 				}
@@ -288,7 +252,6 @@ public class CategoryService {
 			
 			//Get category list for response.
 			categoryList = categoryDataHelper.GetUserCategoryList(userId);
-			
 			if (categoryList != null)
 			{
 				GregorianCalendar gregory = new GregorianCalendar();
@@ -299,32 +262,31 @@ public class CategoryService {
 			}
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
-			
-			meLogger.debug("GetCategoryListForUser has completed. UserId:" + userId);
+
 			return categoryList;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetCategoryListForUser");
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetCategoryListForUser", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetCategoryListForUser", meLogger, startMS, String.valueOf(userId));}
 	}
-	
+
 	public int MoveToNewCategory(long userId, long categoryId, ImageIdList moveList)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			//Retrieve existing category list.
 			long[] categoriesAffected = categoryDataHelper.GetCategoryIdFromImageMoveList(userId, moveList);
-			
 			if (categoriesAffected == null)
 			{
-				meLogger.debug("Unexpected error, No categories were identified for update.");
+				meLogger.warn("Unexpected error, No categories were identified for update.");
 				return HttpStatus.BAD_REQUEST.value();
 			}
 			
@@ -343,13 +305,13 @@ public class CategoryService {
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetCategoryListForUser");
-			return (wallaEx.getCustomStatus() == 0) ? HttpStatus.INTERNAL_SERVER_ERROR.value() : wallaEx.getCustomStatus();
+			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetCategoryListForUser", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("MoveToNewCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
 	
 	public long CreateOrFindUserAppCategory(long userId, int platformId, String machineName) throws WallaException
@@ -432,6 +394,7 @@ public class CategoryService {
 	
 	public void CategoryRippleDelete(long userId, long[] categoryIds)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			/*
@@ -440,25 +403,26 @@ public class CategoryService {
 
 			long[] galleryIds = categoryDataHelper.GetGalleryReferencingCategory(userId, categoryIds);
 			
-			//TODO Post Gallery Update Timestamps
 			for (int i = 0; i < galleryIds.length; i++)
 			{
 				//TODO decouple
-				galleryService.RefreshGalleryImages(userId, galleryIds[0]);
+				galleryService.RefreshGalleryImages(userId, galleryIds[i]);
 			}
 			
 			imageService.DeleteAllImagesCategory(userId, categoryIds);
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected Walla error when trying to process CategoryRippleUpdates", wallaEx);
+			meLogger.error("CategoryRippleDelete failed with an error");
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CategoryRippleUpdates", ex);
+			meLogger.error("CategoryRippleDelete failed with an error", ex);
 		}
+		finally {UserTools.LogMethod("CategoryRippleDelete", meLogger, startMS, String.valueOf(userId));}
 	}
 
 	public void CategoryRippleUpdate(long userId, long categoryId)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			/*
@@ -471,13 +435,24 @@ public class CategoryService {
 			
 			//Category has been updated, get all categories which might be affected.
 			long[] categoryIds = categoryDataHelper.GetCategoryHierachy(userId, categoryId, true);
-			
+			if (categoryIds.length == 0)
+			{
+				String error = "No categories were returned from the database.  UserId:" + userId + " CategoryId: " + categoryId;
+				meLogger.warn(error);
+				return;
+			}
+				
 			//Update LastUpdated dates for each category traversed.
 			categoryDataHelper.UpdateCategoryTimeAndCount(userId, categoryIds);
 			
 			long[] galleryIds = categoryDataHelper.GetGalleryReferencingCategory(userId, categoryIds);
-			
-			//TODO Post Gallery Update Timestamps
+			if (galleryIds == null || galleryIds.length == 0)
+			{
+				String error = "No galleries were returned from the database.  UserId:" + userId;;
+				meLogger.warn(error);
+				return;
+			}
+
 			for (int i = 0; i < galleryIds.length; i++)
 			{
 				//TODO decouple
@@ -485,12 +460,14 @@ public class CategoryService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected Walla error when trying to process CategoryRippleUpdates", wallaEx);
+			meLogger.error("CategoryRippleUpdate failed with an error");
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CategoryRippleUpdates", ex);
+			meLogger.error("CategoryRippleUpdate failed with an error", ex);
 		}
+		finally {UserTools.LogMethod("CategoryRippleUpdate", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));}
 	}
+
 	
 	
 	//*************************************************************************************************************

@@ -175,7 +175,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			{
 				conn.rollback();
 				String error = "Update status didn't return a success count of 1.";
-				throw new WallaException("ImageDataHelperImpl", "UpdateMainStatus", error, 0); 
+				throw new WallaException("ImageDataHelperImpl", "UpdateMainStatus", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
 			
 			conn.commit();
@@ -374,10 +374,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 	        UserTools.LogMethod("GetAccount", meLogger, startMS, String.valueOf(userId));
 		}
 	}
-	
-	
-	
-	
+
 	public void CreateUserApp(long userId, UserApp userApp) throws WallaException
 	{
 		long startMS = System.currentTimeMillis();
@@ -604,7 +601,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 			return userApp;
 		}
 		catch (SQLException | DatatypeConfigurationException ex) {
-			meLogger.error("Unexpected SQLException in GetUserApp", ex);
+			meLogger.error(ex);
 			return null;
 		} 
 		finally {
@@ -614,10 +611,7 @@ public class AccountDataHelperImpl implements AccountDataHelper {
 	        UserTools.LogMethod("GetUserApp", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(userAppId));
 		}
 	}
-	
-	
-	
-	
+
 	public LogonState GetLogonState(String userName, String email)
 	{
 		long startMS = System.currentTimeMillis();

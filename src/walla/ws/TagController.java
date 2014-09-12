@@ -39,13 +39,13 @@ import walla.datatypes.auto.*;
 import walla.utils.*;
 
 	/*
-	CreateUpdateTag() PUT /{userName}/tag/{tagName}
-	DeleteTag() DELETE /{userName}/tag/{tagName}
-	GetTagMeta() GET /{userName}/tag/{tagName}
+	CreateUpdateTag() PUT /{profileName}/tag/{tagName}
+	DeleteTag() DELETE /{profileName}/tag/{tagName}
+	GetTagMeta() GET /{profileName}/tag/{tagName}
 
-	GetTagList() GET /{userName}/tags
-	AddImagesToTag() PUT /{userName}/tag/{tagName}/images
-	RemoveImagesFromTag DELETE /{userName}/tag/{tagName}/images
+	GetTagList() GET /{profileName}/tags
+	AddImagesToTag() PUT /{profileName}/tag/{tagName}/images
+	RemoveImagesFromTag DELETE /{profileName}/tag/{tagName}/images
 	*/
 
 @Controller
@@ -60,27 +60,29 @@ public class TagController {
 	@Autowired
 	private TagService tagService;
 	
-	//  PUT /{userName}/tag/{tagName}
-	@RequestMapping(value = { "/{userName}/tag/{tagName}" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
+	//  PUT /{profileName}/tag/{tagName}
+	@RequestMapping(value = { "/{profileName}/tag/{tagName}" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void CreateUpdateTag(
 			@RequestBody Tag newTag,
 			@PathVariable("tagName") String tagName,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateTag request received, User: " + userName + ", Tag:" + tagName);}
-	
+			response.addHeader("Cache-Control", "no-cache");
 		//			@Valid BindingResult validResult,	
 			/*  Schema validation.  Bug\Feature in Spring. SPR-9378 - Fixed in 3.1.3 & 3.2
 			 *  @RequestBody @Valid Tag newTag,
 			 @Valid BindingResult validResult
 			if (validResult.hasErrors())
 			{
-				meLogger.error("Tag request is not valid, User:" + userName.toString() + ", Tag:" + tagName.toString() + " Validation: " + validResult.getAllErrors().get(0).toString());
-				httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+				meLogger.error("Tag request is not valid, User:" + profileName.toString() + ", Tag:" + tagName.toString() + " Validation: " + validResult.getAllErrors().get(0).toString());
+				response.setStatus(HttpStatus.BAD_REQUEST.value());
 				return null;
 			}
 			*/
@@ -93,213 +95,204 @@ public class TagController {
 			/*
 			if (validResult.hasErrors())
 			{
-				meLogger.error("Tag request is not valid, User:" + userName.toString() + ", Tag:" + tagName.toString() + " Validation: " + validResult.getAllErrors().get(0).toString());
-				httpResponse.setStatus(HttpStatus.BAD_REQUEST.value());
+				meLogger.error("Tag request is not valid, User:" + profileName.toString() + ", Tag:" + tagName.toString() + " Validation: " + validResult.getAllErrors().get(0).toString());
+				response.setStatus(HttpStatus.BAD_REQUEST.value());
 				return null;
 			}
 			*/
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return;
 			}
 	
-			int responseCode = tagService.CreateUpdateTag(userId, newTag, tagName);
+			responseCode = tagService.CreateUpdateTag(customSession.getUserId(), newTag, tagName);
 			if (responseCode == HttpStatus.MOVED_PERMANENTLY.value())
 			{
-				String newLocation = "/" + userName + "/tag/" + newTag.getName();
-				httpResponse.addHeader("Location", newLocation);
+				String newLocation = "/" + profileName + "/tag/" + newTag.getName();
+				response.addHeader("Location", newLocation);
 			}
 	
-			httpResponse.setStatus(responseCode);
-			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateTag tag request completed, User:" + userName.toString() + ", Tag:" + tagName.toString() + " Response code: " + responseCode);}
+			response.setStatus(responseCode);
+			if (meLogger.isDebugEnabled()) {meLogger.debug("CreateUpdateTag tag request completed, User:" + profileName.toString() + ", Tag:" + tagName.toString() + " Response code: " + responseCode);}
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in CreateUpdateTag", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 		}
+		finally { UserTools.LogWebMethod("CreateUpdateTag", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	//  DELETE /{userName}/tag/{tagName}
-	@RequestMapping(value = { "/{userName}/tag/{tagName}" }, method = { RequestMethod.DELETE } , 
+	//  DELETE /{profileName}/tag/{tagName}
+	@RequestMapping(value = { "/{profileName}/tag/{tagName}" }, method = { RequestMethod.DELETE } , 
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void DeleteTag(
 			@RequestBody Tag existingTag, 
 			@PathVariable("tagName") String tagName,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
-		//@RequestHeader String Accept,
-		
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Delete tag request received, User:" + userName.toString() + ", Tag:" + tagName.toString());}
-	
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+			
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return;
 			}
 	
-			int responseCode = tagService.DeleteTag(userId, existingTag, tagName);
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(responseCode);
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Delete tag request completed, User:" + userName.toString() + ", Tag:" + tagName.toString());}
+			responseCode = tagService.DeleteTag(customSession.getUserId(), existingTag, tagName);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in DeleteTag", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 		}
+		finally { UserTools.LogWebMethod("DeleteTag", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	//  GET - /{userName}/tag/{tagName}
+	//  GET - /{profileName}/tag/{tagName}
 	//  No client caching.  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/tag/{tagName}", method=RequestMethod.GET, 
+	@RequestMapping(value="/{profileName}/tag/{tagName}", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody Tag GetTagMeta(
 			@PathVariable("tagName") String tagName,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
-	{	
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
+	{
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get tag meta request received, User:" + userName.toString() + ", Tag:" + tagName.toString());}
+			response.addHeader("Cache-Control", "no-cache");
 			
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return null;
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			Tag responseTag = tagService.GetTagMeta(userId, tagName, customResponse);
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get tag Meta request completed, User:" + userName.toString() + ", Tag:" + tagName.toString());}
-			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
+			Tag responseTag = tagService.GetTagMeta(customSession.getUserId(), tagName, customResponse);
+			responseCode = customResponse.getResponseCode();
 			return responseTag;
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in GetTagMeta", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 			return null;
 		}
+		finally { UserTools.LogWebMethod("GetTagMeta", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 
-	//  GET /{userName}/tags
+	//  GET /{profileName}/tags
 	//  No client caching.  Check client side version against db timestamp.
-	@RequestMapping(value="/{userName}/tags", method=RequestMethod.GET, 
+	@RequestMapping(value="/{profileName}/tags", method=RequestMethod.GET, 
 			produces=MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public @ResponseBody TagList GetTagList(
-			@PathVariable("userName") String userName,
-			HttpServletRequest requestObject,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
 		Date clientVersionTimestamp = null;
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get tag list for a user request received, User:" + userName.toString());}
-
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+		
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
 				return null;
 			}
 			
-			long headerDateLong = requestObject.getDateHeader("If-Modified-Since");
+			long headerDateLong = request.getDateHeader("If-Modified-Since");
 			if (headerDateLong > 0)
 			{
 				clientVersionTimestamp = new Date(headerDateLong);
 			}
 			
 			CustomResponse customResponse = new CustomResponse();
-			TagList tagList = tagService.GetTagListForUser(userId, clientVersionTimestamp, customResponse);
-	
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("Get tag list for a user completed, User:" + userName.toString());}
-			
+			TagList tagList = tagService.GetTagListForUser(customSession.getUserId(), clientVersionTimestamp, customResponse);
+			responseCode = customResponse.getResponseCode();
+
 			return tagList;
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in GetTagList", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 			return null;
 		}
+		finally { UserTools.LogWebMethod("TagList", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	// PUT /{userName}/tag/{tagName}/images
+	// PUT /{profileName}/tag/{tagName}/images
 	// No client caching
-	@RequestMapping(value = { "/{userName}/tag/{tagName}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/tag/{tagName}/images" }, method = { RequestMethod.PUT }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void AddImagesToTag(
 			@RequestBody ImageIdList moveList,
 			@PathVariable("tagName") String tagName,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("AddImagesToTag request received, User: " + userName + ", TagName:" + tagName);}
-	
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+			
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return;
 			}
 	
-			int responseCode = tagService.AddRemoveTagImages(userId, tagName, moveList, true);
-			httpResponse.setStatus(responseCode);
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("AddImagesToTag request completed, User:" + userName.toString() + ", TagName:" + tagName + " Response code: " + responseCode);}
+			responseCode = tagService.AddRemoveTagImages(customSession.getUserId(), tagName, moveList, true);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in AddImagesToTag", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 		}
+		finally { UserTools.LogWebMethod("AddImagesToTag", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 	
-	// PUT /{userName}/tag/{tagName}/images
+	// PUT /{profileName}/tag/{tagName}/images
 	// No client caching
-	@RequestMapping(value = { "/{userName}/tag/{tagName}/images" }, method = { RequestMethod.DELETE }, produces=MediaType.APPLICATION_XML_VALUE,
+	@RequestMapping(value = { "/{profileName}/tag/{tagName}/images" }, method = { RequestMethod.DELETE }, produces=MediaType.APPLICATION_XML_VALUE,
 			consumes = MediaType.APPLICATION_XML_VALUE, headers={"Accept-Charset=utf-8"} )
 	public void RemoveImagesFromTag(
 			@RequestBody ImageIdList moveList,
 			@PathVariable("tagName") String tagName,
-			@PathVariable("userName") String userName,
-			HttpServletResponse httpResponse)
+			@PathVariable("profileName") String profileName,
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("RemoveImagesFromTag request received, User: " + userName + ", TagName:" + tagName);}
-	
-			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName /* ,to add OAuth entity */);
-			if (userId < 0)
+			response.addHeader("Cache-Control", "no-cache");
+			
+			CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			if (customSession == null)
 			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				responseCode = HttpStatus.UNAUTHORIZED.value();
+				return;
 			}
 	
-			int responseCode = tagService.AddRemoveTagImages(userId, tagName, moveList, false);
-			httpResponse.setStatus(responseCode);
-			
-			if (meLogger.isDebugEnabled()) {meLogger.debug("RemoveImagesFromTag request completed, User:" + userName.toString() + ", TagName:" + tagName + " Response code: " + responseCode);}
+			responseCode = tagService.AddRemoveTagImages(customSession.getUserId(), tagName, moveList, false);
 		}
 		catch (Exception ex) {
-			meLogger.error("Received Exception in RemoveImagesFromTag", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(ex);
 		}
+		finally { UserTools.LogWebMethod("RemoveImagesFromTag", meLogger, startMS, request, responseCode); response.setStatus(responseCode); }
 	}
 }

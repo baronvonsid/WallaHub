@@ -1,6 +1,7 @@
 package walla.db;
 
 import javax.sql.DataSource;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -28,6 +29,8 @@ import walla.utils.*;
 
 import org.springframework.http.HttpStatus;
 
+
+
 @Repository
 public class CategoryDataHelperImpl implements CategoryDataHelper {
 
@@ -46,6 +49,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 	
 	public void CreateCategory(long userId, Category newCategory, long categoryId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		String sql = "INSERT INTO [dbo].[Category] ([CategoryId],[ParentId],[Name],[Description],"
 					+ "[ImageCount],[LastUpdated],[RecordVersion],[Active],[SystemOwned],[UserId]) "
 					+ "VALUES (?,?,?,?,0,dbo.GetDateNoMS(),1,1,?,?)";
@@ -56,13 +60,11 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {
 			int returnCount = 0;
 			
-			meLogger.debug("CreateCategory() begins. UserId:" + userId + " CategoryName:" + newCategory.getName());
-			
 			if (!CheckCategoryExists(userId, newCategory.getParentId()))
 			{
-				String error = "Parent Category is not valid.  ParentId: " + newCategory.getParentId();
-				meLogger.error(error);
-				throw new WallaException(this.getClass().getName(), "CreateCategory", error, HttpStatus.BAD_REQUEST.value()); 	
+				String message = "Parent Category is not valid.  ParentId: " + newCategory.getParentId();
+				meLogger.error(message);
+				throw new WallaException(this.getClass().getName(), "CreateCategory", message, HttpStatus.BAD_REQUEST.value()); 	
 			}
 			
 			conn = dataSource.getConnection();
@@ -89,31 +91,27 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				throw new WallaException(this.getClass().getName(), "CreateCategory", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 				
 			}
 
-			meLogger.debug("CreateCategory() ends. UserId:" + userId + " CategoryName:" + newCategory.getName());
-			
 			conn.commit();
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateCategory", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			
-			meLogger.error("Unexpected Exception in CreateCategory", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}
 	
 	public void UpdateCategory(long userId, Category existingCategory) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		
@@ -153,22 +151,20 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			}
 
 			conn.commit();
-		}
+		} 
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateCategory", sqlEx);
-			throw new WallaException(sqlEx, 0);
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateCategory", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateCategory", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
@@ -178,7 +174,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		 * Category gets marked with Active of 0.
 		 * HubProcess then instructed to clear up images, views and tags.
 		 */
-		
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement ds = null;
 		
@@ -229,28 +225,26 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			}
 			
 			conn.commit();
-		}
+		} 
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in DeleteCategory", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in DeleteCategory", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ds != null) try { if (!ds.isClosed()) {ds.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("MarkCategoryAsDeleted", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	public Category GetCategoryMeta(long userId, long categoryId) throws WallaException
+	public Category GetCategoryMeta(long userId, long categoryId)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -287,23 +281,21 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			
 			return category;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoryMeta", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException | DatatypeConfigurationException ex) {
+			meLogger.error(ex);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoryMeta", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoryMeta", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}
 	
-	public ImageList GetCategoryImageListMeta(long userId, long categoryId) throws WallaException
+	public ImageList GetCategoryImageListMeta(long userId, long categoryId)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -316,55 +308,45 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			ps = conn.prepareStatement(selectSql);
 
 			ps.setLong(1, userId);
-			ps.setLong(2,categoryId);
+			ps.setLong(2, categoryId);
 
 			resultset = ps.executeQuery();
 
-			if (!resultset.next())
+			if (resultset.next())
 			{
-				resultset.close();
-				String error = "Select statement didn't return any records.";
-				meLogger.error(error);
-				throw new WallaException("CategoryDataHelperImpl", "GetCategoryImageListMeta", error, 0); 
+				categoryImageList = new ImageList();
+				categoryImageList.setId(resultset.getLong(1));
+				categoryImageList.setName(resultset.getString(2));
+				categoryImageList.setDesc(resultset.getString(3));
+				categoryImageList.setTotalImageCount(resultset.getInt(4));
+				
+				GregorianCalendar oldGreg = new GregorianCalendar();
+				oldGreg.setTime(resultset.getTimestamp(5));
+				XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
+				
+				categoryImageList.setLastChanged(xmlOldGreg);
+				categoryImageList.setVersion(resultset.getInt(6));
+				categoryImageList.setSystemOwned(resultset.getBoolean(7));
 			}
-			
-			categoryImageList = new ImageList();
-			categoryImageList.setId(resultset.getLong(1));
-			categoryImageList.setName(resultset.getString(2));
-			categoryImageList.setDesc(resultset.getString(3));
-			categoryImageList.setTotalImageCount(resultset.getInt(4));
-			
-			GregorianCalendar oldGreg = new GregorianCalendar();
-			oldGreg.setTime(resultset.getTimestamp(5));
-			XMLGregorianCalendar xmlOldGreg = DatatypeFactory.newInstance().newXMLGregorianCalendar(oldGreg);
-			
-			categoryImageList.setLastChanged(xmlOldGreg);
-			categoryImageList.setVersion(resultset.getInt(6));
-			categoryImageList.setSystemOwned(resultset.getBoolean(7));
 			
 			resultset.close();
 			return categoryImageList;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoryImageListMeta", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoryImageListMeta", ex);
-			throw new WallaException(ex, 0);
+		catch (SQLException | DatatypeConfigurationException ex) {
+			meLogger.error(ex);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoryImageListMeta", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}
 	
-	public Date LastCategoryListUpdate(long userId) throws WallaException
+	public Date LastCategoryListUpdate(long userId)
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -388,24 +370,21 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		
 			return utilDate;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in LastCategoryListUpdate", sqlEx);
-			throw new WallaException(sqlEx,0);
+		catch (SQLException ex) {
+			meLogger.error(ex);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in LastCategoryListUpdate", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("LastCategoryListUpdate", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
-	//TODO Add search params
 	public int GetTotalImageCount(long userId, long categoryId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -413,7 +392,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		try {			
 			conn = dataSource.getConnection();
 
-			String selectSql = "SELECT COUNT(*) "
+			String selectSql = "SELECT COUNT(1) "
 								+ "FROM [Image]"
 								+ "WHERE [UserId] = ? AND [CategoryId] = ? AND Status = 4";
 			
@@ -430,30 +409,24 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			{
 				String error = "Select statement didn't return any records, in GetTotalImageCount.";
 				meLogger.error(error);
-				throw new WallaException("CategoryDataHelperImpl", "GetTotalImageCount", error, 0); 
+				throw new WallaException("CategoryDataHelperImpl", "GetTotalImageCount", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTotalImageCount", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTotalImageCount", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetTotalImageCount", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}
-	
-	// TODO Add search facility
+
 	public void GetCategoryImages(long userId, int imageCursor, int imageCount, ImageList categoryImageList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -512,33 +485,25 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 				categoryImageList.getImages().getImageRef().add(newImageRef);
 			}
 			resultset.close();
-			
-			if (categoryImageList.getImages().getImageRef().size() == 0)
-			{
-				meLogger.info("Select statement didn't return any records.");
-				//throw new WallaException("CategoryDataHelperImpl", "GetCategoryImages", error, 0); 
-			}
-			
+
 			categoryImageList.setImageCount(categoryImageList.getImages().getImageRef().size());
 			categoryImageList.setImageCursor(imageCursor);
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoryImages", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoryImages", ex);
-			throw new WallaException(ex, 0);
+		catch (SQLException | DatatypeConfigurationException ex) {
+			meLogger.error(ex);
+			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoryImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
-	
+
 	public CategoryList GetUserCategoryList(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -575,22 +540,20 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			return categoryList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetUserCategoryList", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetUserCategoryList", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetUserCategoryList", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	private boolean CheckCategoryExists(long userId, long categoryId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -611,27 +574,26 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in CheckCategoryExists", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CheckCategoryExists", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}
 	
 	public long[] GetGalleryReferencingCategory(long userId, long[] categoryIds) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
 		
 		try {			
 			conn = dataSource.getConnection();
-
-			if (categoryIds.length == 0)
-				return new long[0];
 			
 			//Includes deactivated categories.
 			String selectSql  = "SELECT DISTINCT [GalleryId] FROM GallerysLinkedToCategories WHERE UserId="
@@ -665,22 +627,20 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			return returnGalleryIds;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleryReferencingCategory", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleryReferencingCategory", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleryReferencingCategory", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public void UpdateCategoryTimeAndCount(long userId, long[] categoryIds) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement ds = null;
 		
@@ -706,22 +666,23 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in UpdateCategoryTimestamp", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateCategoryTimestamp", ex);
-			throw new WallaException(ex, 0);
-		}
+			throw ex;
+		} 
 		finally {
 			if (ds != null) try { if (!ds.isClosed()) {ds.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateCategoryTimeAndCount", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public long[] GetCategoryHierachy(long userId, long categoryId, boolean up) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
@@ -731,13 +692,10 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 
 			String executeSql = null;
 			if (up)
-			{
 				executeSql = "SELECT CategoryId FROM [dbo].[CategoryListUp](" + userId + "," + categoryId + ")";
-			}
 			else
-			{
 				executeSql = "SELECT CategoryId FROM [dbo].[CategoryListDown](" + userId + "," + categoryId + ")";
-			}
+
 			statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 			
 			resultset = statement.executeQuery(executeSql);
@@ -749,13 +707,6 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			    resultset.beforeFirst();
 			}
 			catch(Exception ex) {}
-
-			if (size == 0)
-			{
-				String error = "Function GetCategoryHierachy didn't return any records.";
-				meLogger.error(error);
-				throw new WallaException("CategoryDataHelperImpl", "GetCategoryHierachy", error, 0); 
-			}
 			
 			long[] returnCategoryId = new long[size];
 			for (int i = 0; i < size; i++)
@@ -767,25 +718,20 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			return returnCategoryId;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoryHierachy", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoryHierachy", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoryHierachy", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 		}
 	}	
 
 	public long[] GetCategoryIdFromImageMoveList(long userId, ImageIdList moveList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		ResultSet resultset = null;
@@ -820,9 +766,8 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 
 					if (size == 0)
 					{
-						String error = "Select didn't return any records.";
-						meLogger.error(error);
-						throw new WallaException("CategoryDataHelperImpl", "GetCategoryIdFromImageMoveList", error, 0); 
+						if (meLogger.isDebugEnabled()) {meLogger.debug("Select didn't return any records.");}
+						return null;
 					}
 					
 					long[] returnCategoryId = new long[size];
@@ -839,25 +784,20 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 			return null;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetCategoryIdFromImageMoveList", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetCategoryIdFromImageMoveList", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetCategoryIdFromImageMoveList", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public void MoveImagesToNewCategory(long userId, long categoryId, ImageIdList moveList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement statement = null;
 		
@@ -889,7 +829,7 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 						conn.rollback();
 						String error = "Updating images with a new category returned a different result to the expectation, no changes made.";
 						meLogger.error(error);
-						throw new WallaException("CategoryDataHelperImpl", "MoveImagesToNewCategory", error, 0); 
+						throw new WallaException("CategoryDataHelperImpl", "MoveImagesToNewCategory", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
 					}
 					conn.commit();
 				}
@@ -897,18 +837,18 @@ public class CategoryDataHelperImpl implements CategoryDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in MoveImagesToNewCategory", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in MoveImagesToNewCategory", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 			if (statement != null) try { if (!statement.isClosed()) {statement.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
 		}
+		UserTools.LogMethod("MoveImagesToNewCategory", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(categoryId));
 	}
 	
 	

@@ -38,21 +38,15 @@ public class GalleryService {
 	
 	public int CreateUpdateGallery(long userId, Gallery newGallery, String galleryName)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			meLogger.debug("CreateUpdateGallery() begins. UserId:" + userId + " Gallery name:" + galleryName);
-			
-			//TODO Check User is logged in with Write permission
-			//HttpStatus.UNAUTHORIZED.value()
-			
 			Gallery existingGallery = galleryDataHelper.GetGalleryMeta(userId, galleryName);
-
 			if (existingGallery == null)
 			{
 				if (!newGallery.getName().equals(galleryName))
 				{
-					String error = "Create Gallery failed, names don't match.";
-					meLogger.error(error);
-					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Create Gallery failed, names don't match.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				long newGalleryId = utilityDataHelper.GetNewId("GalleryId");
@@ -67,29 +61,24 @@ public class GalleryService {
 			{
 				if (newGallery.getId() == null || newGallery.getVersion() == null)
 				{
-					String error = "Update Gallery failed, ids and versions weren't supplied.";
-					meLogger.error(error);
-					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Update Gallery failed, ids and versions weren't supplied.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				if (existingGallery.getId().longValue() != newGallery.getId().longValue())
 				{
-					String error = "Update Gallery failed, ids don't match.";
-					meLogger.error(error);
-					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Update Gallery failed, ids don't match.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				if (existingGallery.getVersion().intValue() != newGallery.getVersion().intValue())
 				{
-					String error = "Update Gallery failed, record versions don't match.";
-					meLogger.error(error);
-					throw new WallaException("GalleryService", "CreateUpdateGallery", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Update Gallery failed, record versions don't match.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				galleryDataHelper.UpdateGallery(userId, newGallery);
-				
-				meLogger.debug("CreateUpdateGallery has completed. UserId:" + userId);
-				
+
 				//TODO switch to messaging.
 				RefreshGalleryImages(userId, newGallery.getId());
 				
@@ -104,75 +93,66 @@ public class GalleryService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateUpdateGallery");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process CreateUpdateGallery", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("CreateUpdateGallery", meLogger, startMS, String.valueOf(userId) + " " + galleryName);}
 	}
 
 	public int DeleteGallery(long userId, Gallery gallery, String galleryName)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			meLogger.debug("DeleteTag() begins. UserId:" + userId + " TagName:" + galleryName);
-			
+
 			if (!gallery.getName().equals(galleryName))
 			{
-				String error = "DeleteGallery failed, names don't match.";
-				meLogger.error(error);
-				throw new WallaException("GalleryService", "DeleteGallery", error, HttpStatus.CONFLICT.value()); 
+				meLogger.warn("DeleteGallery failed, names don't match.");
+				return HttpStatus.CONFLICT.value(); 
 			}
 			
 			galleryDataHelper.DeleteGallery(userId, gallery.getId(), gallery.getVersion(), galleryName);
-			
-			meLogger.debug("DeleteGallery has completed. UserId:" + userId);
-			
+
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process DeleteGallery");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces DeleteGallery", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("DeleteGallery", meLogger, startMS, String.valueOf(userId) + " " + galleryName);}
 	}
 	
 	public long GetUserForGallery(String userName, String galleryName, String urlComplex)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
-			meLogger.debug("GetUserForGallery() begins. userName:" + userName + " GalleryName:" + galleryName);
-			
 			if (galleryName.length() > 30 || urlComplex.length() > 36 || userName.length() > 30)
 			{
-				//Special validation to reduce chance of SQL pass through.
-				String error = "GetUserForGallery was passed an invalid argument. UserName: " + userName + " GalleryName:" + galleryName + " UrlComplex:" + urlComplex;
-				meLogger.error(error);
-				throw new WallaException("GalleryService", "GetGalleryMeta", error, HttpStatus.UNAUTHORIZED.value()); 
+				String message = "GetUserForGallery was passed an invalid argument. UserName: " + userName + " GalleryName:" + galleryName + " UrlComplex:" + urlComplex;
+				meLogger.warn(message);
+				return -1;
 			}
-			
-			meLogger.debug("GetUserForGallery() begins. userName:" + userName + " GalleryName:" + galleryName);
-			
+
 			return galleryDataHelper.GetGalleryUserId(userName, galleryName, urlComplex);
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetUserForGallery", wallaEx);
 			return -1;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetUserForGallery",ex);
+			meLogger.error(ex);
 			return -1;
 		}
+		finally {UserTools.LogMethod("GetUserForGallery", meLogger, startMS, userName + " " + galleryName);}
 	}
 	
 	public void ResetGallerySectionForPreview(Gallery gallery)
 	{
-		meLogger.debug("ResetGallerySectionForPreview() begins.");
-		
 		if (gallery.getSections() != null)
 		{
 			if (gallery.getSections().getSectionRef().size() > 0)
@@ -186,57 +166,48 @@ public class GalleryService {
 				//TODO sort these bad boys by sequence. 
 			}
 		}
-		
-		meLogger.debug("ResetGallerySectionForPreview() finishes.");
 	}
 	
 	public Gallery GetGalleryMeta(long userId, String galleryName, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			//Check user can access gallery list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetGalleryMeta() begins. UserId:" + userId + " GalleryName:" + galleryName);
-	
-			
 			//Get gallery list for response.
 			Gallery gallery = galleryDataHelper.GetGalleryMeta(userId, galleryName);
 			if (gallery == null)
 			{
-				String error = "GetGalleryMeta didn't return a valid Gallery object";
-				meLogger.error(error);
-				throw new WallaException("GalleryService", "GetGalleryMeta", error, HttpStatus.NOT_FOUND.value()); 
+				meLogger.warn("GetGalleryMeta didn't return a valid Gallery object");
+				customResponse.setResponseCode(HttpStatus.NOT_FOUND.value());
+				return null;
 			}
-			
-			meLogger.debug("GetGalleryMeta has completed. UserId:" + userId);
-			
+
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return gallery;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetGalleryMeta", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetGalleryMeta",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetGalleryMeta", meLogger, startMS, String.valueOf(userId) + " " + galleryName);}
 	}
 
 	public GalleryList GetGalleryListForUser(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetGalleryListForUser() begins. UserId:" + userId);
-			
 			GalleryList galleryList = null;
 			Date lastUpdate = galleryDataHelper.LastGalleryListUpdate(userId);
-			
-			//lastUpdate.setTime(1000 * (lastUpdate.getTime() / 1000));
+			if (lastUpdate == null)
+			{
+				meLogger.warn("Last updated date for gallery could not be retrieved.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
 			
 			//Check if tag list changed
 			if (clientVersionTimestamp != null)
@@ -251,7 +222,6 @@ public class GalleryService {
 			
 			//Get tag list for response.
 			galleryList = galleryDataHelper.GetUserGalleryList(userId);
-			
 			if (galleryList!= null)
 			{
 				GregorianCalendar gregory = new GregorianCalendar();
@@ -263,19 +233,18 @@ public class GalleryService {
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			
-			meLogger.debug("GetGalleryListForUser has completed. UserId:" + userId);
 			return galleryList;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetGalleryListForUser");
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetGalleryListForUser", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetGalleryListForUser", meLogger, startMS, String.valueOf(userId));}
 	}
 
 	public long GetDefaultGallery(long userId, int appId) throws WallaException
@@ -296,28 +265,41 @@ public class GalleryService {
 			
 			return 0;
 		}
+		catch (WallaException wallaEx) {
+			throw wallaEx;
+		}
 		catch (Exception ex) {
 			meLogger.error(ex);
-			throw new WallaException(ex);
+			throw ex;
 		}
 		finally { UserTools.LogMethod("GetDefaultGallery", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(appId)); }
 	}
 	
 	public GalleryOptions GetGalleryOptions(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
 			Date latestDate = new Date();
 			Calendar cal = Calendar.getInstance();
 			cal.add(Calendar.YEAR, -10);
 			latestDate.setTime(cal.getTimeInMillis());
 			
-			
-			meLogger.debug("GetGalleryOptions() begins. UserId:" + userId);
-			
 			//Get Presentation and Style objects from memory.
 			List<Presentation> presentations = cachedData.GetPresentationList();
+			if (presentations == null)
+			{
+				meLogger.debug("No gallery options list generated because available presentations could not be retrieved.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
+			
 			List<Style> style = cachedData.GetStyleList();
-
+			if (style == null)
+			{
+				meLogger.debug("No gallery options list generated because available styles could not be retrieved.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
 			
 			GalleryOptions options = new GalleryOptions();
 			options.setPresentation(new GalleryOptions.Presentation());
@@ -369,8 +351,6 @@ public class GalleryService {
 				}
 			}
 			
-			meLogger.debug("GetGalleryOptions has completed. UserId:" + userId);
-			
 			if (clientVersionTimestamp == null || latestDate.after(clientVersionTimestamp))
 			{
 				GregorianCalendar oldGreg = new GregorianCalendar();
@@ -383,42 +363,40 @@ public class GalleryService {
 			}
 			else
 			{
-				meLogger.debug("No gallery options list generated because client list is up to date.");
+				if (meLogger.isDebugEnabled()) {meLogger.debug("No gallery options list generated because client list is up to date.");}
 				customResponse.setResponseCode(HttpStatus.NOT_MODIFIED.value());
 				return null;
 			}
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetGalleryOptions",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetGalleryOptions", meLogger, startMS, "");}
 	}
 
 	public Gallery GetGallerySections(long userId, Gallery requestGallery, CustomResponse customResponse)
 	{
+		long startMS = System.currentTimeMillis();
 		try {
-			meLogger.debug("GetGallerySections() begins. UserId:" + userId);
-			
 			long newTempGalleryId = utilityDataHelper.GetNewId("TempGalleryId");
 			
 			Gallery gallery = galleryDataHelper.GetGallerySections(userId, requestGallery, newTempGalleryId);
-			
-			meLogger.debug("GetGallerySections has completed. UserId:" + userId);
-			
+
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return gallery;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetGallerySections", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetGallerySections",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetGallerySections", meLogger, startMS, String.valueOf(userId));}
 	}
 	
 	public Presentation GetPresentation(int presentationId) throws WallaException
@@ -436,13 +414,18 @@ public class GalleryService {
 
 	public void RefreshGalleryImages(long userId, long galleryId)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			galleryDataHelper.RegenerateGalleryImages(userId, galleryId);
 		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces RefreshGalleryImages", ex);
+		catch (WallaException wallaEx) {
+			meLogger.error("RefreshGalleryImages failed with an error");
 		}
+		catch (Exception ex) {
+			meLogger.error("RefreshGalleryImages failed with an error", ex);
+		}
+		finally {UserTools.LogMethod("RefreshGalleryImages", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(galleryId));}
 	}
 	
 	public void setGalleryDataHelper(GalleryDataHelperImpl galleryDataHelper)

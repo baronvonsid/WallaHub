@@ -32,78 +32,86 @@ import walla.ws.*;
 
 public final class ImageUtilityHelper 
 {
-	private static Logger meLogger = null;
+	//private static Logger meLogger = null;
 	
-	public static String EnrichImageMetaFromFileData(String imageFilePath, ImageMeta imageMeta)
+	public static String EnrichImageMetaFromFileData(String imageFilePath, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
-		meLogger = Logger.getLogger(ImageUtilityHelper.class);
-	
-		File imageFile = new File(imageFilePath);
-		
-		/* Size, Format, Date taken */
-		String response = EnrichMetaFromFile(imageFile, imageMeta);
-		if (!response.equals("OK"))
-			return response;
-		
-		Metadata fileMetaData = null;
-		try 
+		long startMS = System.currentTimeMillis();
+		try
 		{
-			fileMetaData = ImageMetadataReader.readMetadata(imageFile);
-		} 
-		catch (ImageProcessingException | IOException e) 
-		{
-			response = LoadFileIntoMemoryReadAttributes(imageFile, imageMeta);
+			File imageFile = new File(imageFilePath);
+			
+			/* Size, Format, Date taken */
+			String response = EnrichMetaFromFile(imageFile, imageMeta, meLogger, imageId);
 			if (!response.equals("OK"))
+				return response;
+			
+			Metadata fileMetaData = null;
+			try 
 			{
-				return "Meta data not supported, image could not be loaded." + response;
+				fileMetaData = ImageMetadataReader.readMetadata(imageFile);
+			} 
+			catch (ImageProcessingException | IOException e) 
+			{
+				response = LoadFileIntoMemoryReadAttributes(imageFile, imageMeta, meLogger, imageId);
+				if (!response.equals("OK"))
+				{
+					return "Meta data not supported, image could not be loaded." + response;
+				}
+				else
+				{
+					imageMeta.setTakenDate(imageMeta.getTakenDateFile());
+					return "OK";
+				}
 			}
-			else
+			
+			if (imageMeta.getFormat().equals("JPG"))
 			{
-				imageMeta.setTakenDate(imageMeta.getTakenDateFile());
-				return "OK";
+				JpegDirectory jpegDirectory = fileMetaData.getDirectory(JpegDirectory.class);
+				if (jpegDirectory != null)
+				{
+					response = EnrichMetaFromJPEG(jpegDirectory, imageMeta, meLogger, imageId);
+					if (!response.equals("OK"))
+						return response;
+				}
 			}
-		}
-		
-		if (imageMeta.getFormat().equals("JPG"))
-		{
-			JpegDirectory jpegDirectory = fileMetaData.getDirectory(JpegDirectory.class);
-			if (jpegDirectory != null)
+			
+			ExifIFD0Directory exifDirectory = fileMetaData.getDirectory(ExifIFD0Directory.class);
+			if (exifDirectory != null)
 			{
-				response = EnrichMetaFromJPEG(jpegDirectory, imageMeta);
+				response = EnrichMetaFromEXIF(exifDirectory, imageMeta, meLogger, imageId);
 				if (!response.equals("OK"))
 					return response;
 			}
-		}
-		
-		ExifIFD0Directory exifDirectory = fileMetaData.getDirectory(ExifIFD0Directory.class);
-		if (exifDirectory != null)
-		{
-			response = EnrichMetaFromEXIF(exifDirectory, imageMeta);
-			if (!response.equals("OK"))
-				return response;
-		}
-		
-		ExifSubIFDDirectory exifSubDirectory = fileMetaData.getDirectory(ExifSubIFDDirectory.class);
-		if (exifSubDirectory != null)
-		{
-			response = EnrichMetaFromEXIFSub(exifSubDirectory, imageMeta);
-			if (!response.equals("OK"))
-				return response;
-		}
-
-		if (imageMeta.getTakenDate() == null)
-		{
-			if (imageMeta.getTakenDateMeta() != null)
+			
+			ExifSubIFDDirectory exifSubDirectory = fileMetaData.getDirectory(ExifSubIFDDirectory.class);
+			if (exifSubDirectory != null)
 			{
-				imageMeta.setTakenDate(imageMeta.getTakenDateMeta());
+				response = EnrichMetaFromEXIFSub(exifSubDirectory, imageMeta, meLogger, imageId);
+				if (!response.equals("OK"))
+					return response;
 			}
-			else
+	
+			if (imageMeta.getTakenDate() == null)
 			{
-				imageMeta.setTakenDate(imageMeta.getTakenDateFile());
+				if (imageMeta.getTakenDateMeta() != null)
+				{
+					imageMeta.setTakenDate(imageMeta.getTakenDateMeta());
+				}
+				else
+				{
+					imageMeta.setTakenDate(imageMeta.getTakenDateFile());
+				}
 			}
+			
+			return "OK";
 		}
+		catch (Exception ex) {
+			meLogger.error(ex);
+			return ex.getMessage();
+		}
+		finally {UserTools.LogMethod("EnrichImageMetaFromFileData", meLogger, startMS, String.valueOf(imageId));}
 		
-		return "OK";
 		/*
 		for (Directory directory : fileMetaData.getDirectories()) 
 		{   
@@ -132,10 +140,11 @@ public final class ImageUtilityHelper
 
 	}
 	
-	private static String EnrichMetaFromFile(File currentFile, ImageMeta imageMeta)
+	private static String EnrichMetaFromFile(File currentFile, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
 		//Enrich:
 		/* Size, Format, Date taken */
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			Path path = currentFile.toPath();
@@ -177,23 +186,22 @@ public final class ImageUtilityHelper
 					imageMeta.setFormat(extension.toUpperCase());
 					break;
 				default:
-					String error = "ImageId:" + imageMeta.getId() + " Format not supported:" + extension.toUpperCase();
-					throw new WallaException("ImageUtilityHelper", "EnrichMetaFromFile", error, 0); 
+					String message = "ImageId:" + imageMeta.getId() + " Format not supported:" + extension.toUpperCase();
+					meLogger.warn(message);
+					return message;
 			}
 			return "OK";
 		}
-		catch (WallaException wallaEx) {
-			meLogger.error("Error when trying to process EnrichMetaFromFile", wallaEx);
-			return wallaEx.getMessage();
-		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces EnrichMetaFromFile", ex);
+			meLogger.error(ex);
 			return ex.getMessage();
 		}
+		finally {UserTools.LogMethod("EnrichMetaFromFile", meLogger, startMS, String.valueOf(imageId));}
 	}
 	
-	private static String LoadFileIntoMemoryReadAttributes(File currentFile, ImageMeta imageMeta)
+	private static String LoadFileIntoMemoryReadAttributes(File currentFile, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
+		long startMS = System.currentTimeMillis();
 		BufferedImage img = null;
 		
 		try
@@ -205,17 +213,19 @@ public final class ImageUtilityHelper
 			return "OK";
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces LoadFileIntoMemoryReadAttributes", ex);
+			meLogger.error(ex);
 			return ex.getMessage();
 		}
+		finally {UserTools.LogMethod("LoadFileIntoMemoryReadAttributes", meLogger, startMS, String.valueOf(imageId));}
 	}
 	
-	private static String EnrichMetaFromJPEG(JpegDirectory jpegDirectory, ImageMeta imageMeta)
+	private static String EnrichMetaFromJPEG(JpegDirectory jpegDirectory, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
 		/*
  		height - integer
  		width - integer
 		*/
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			JpegDescriptor descriptor = new JpegDescriptor(jpegDirectory); 
@@ -235,13 +245,15 @@ public final class ImageUtilityHelper
 			return "OK";
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces EnrichMetaFromJPEG", ex);
+			meLogger.error(ex);
 			return ex.getMessage();
 		}
+		finally {UserTools.LogMethod("EnrichMetaFromJPEG", meLogger, startMS, String.valueOf(imageId));}
 	}
 	
-	private static String EnrichMetaFromEXIF(ExifIFD0Directory exifDirectory, ImageMeta imageMeta)
+	private static String EnrichMetaFromEXIF(ExifIFD0Directory exifDirectory, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			/*
@@ -283,13 +295,15 @@ public final class ImageUtilityHelper
 			return "OK";
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces EnrichMetaFromEXIF", ex);
+			meLogger.error(ex);
 			return ex.getMessage();
 		}
+		finally {UserTools.LogMethod("EnrichMetaFromEXIF", meLogger, startMS, String.valueOf(imageId));}
 	}
 	
-	private static String EnrichMetaFromEXIFSub(ExifSubIFDDirectory exifSubDirectory, ImageMeta imageMeta)
+	private static String EnrichMetaFromEXIFSub(ExifSubIFDDirectory exifSubDirectory, ImageMeta imageMeta, Logger meLogger, long imageId)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			ExifSubIFDDescriptor descriptor = new ExifSubIFDDescriptor(exifSubDirectory); 
@@ -357,9 +371,10 @@ public final class ImageUtilityHelper
 			return "OK";
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces EnrichMetaFromEXIF", ex);
+			meLogger.error(ex);
 			return ex.getMessage();
 		}
+		finally {UserTools.LogMethod("EnrichMetaFromEXIFSub", meLogger, startMS, String.valueOf(imageId));}
 	}
 
 	/********************************************************************************/
@@ -368,182 +383,207 @@ public final class ImageUtilityHelper
 	/********************************************************************************/
 	/********************************************************************************/
 	
-	public static void DeleteImage(String filePath)
+	public static void DeleteImage(String filePath, Logger meLogger)
 	{
-		File deleteFile = new File(filePath);
-		deleteFile.delete();
-	}
-	
-	public static boolean CheckForPortrait(String mainImagePath) throws IOException
-	{
-		boolean portrait = false;
-		
-		BufferedImage img = ImageIO.read(new File(mainImagePath));
-		int height = img.getHeight();
-		int width = img.getWidth();
-		
-		double aspectRatio = (double)width / (double)height;
-		aspectRatio = UserTools.DoRound(aspectRatio,0);
-		if (aspectRatio < 1)
-			portrait = true;
-		
-		return portrait;
-	}
-	
-	public static boolean SwitchHeightWidth(String mainImagePath, ImageMeta imageMeta) throws IOException
-	{
-		int imageMetaWidth = imageMeta.getWidth().intValue();
-		int imageMetaHeight = imageMeta.getHeight().intValue();
-		
-		BufferedImage img = ImageIO.read(new File(mainImagePath));
-		int updatedHeight = img.getHeight();
-		int updatedWidth = img.getWidth();
-
-		//Calculate aspect ratio or target image.
-		double updatedAspectRatio = (double)updatedWidth / (double)updatedHeight;
-		updatedAspectRatio = UserTools.DoRound(updatedAspectRatio,2);
-		
-		//Calculate aspect ratio of current image.
-		double originalAspectRatio = (double)imageMetaWidth / (double)imageMetaHeight;
-		originalAspectRatio = UserTools.DoRound(originalAspectRatio,2);
-		
-		if (updatedAspectRatio != originalAspectRatio)
+		long startMS = System.currentTimeMillis();
+		try
 		{
-			//Switch them.
-			imageMeta.setHeight(imageMetaWidth);
-			imageMeta.setWidth(imageMetaHeight);
-			return true;
+			File deleteFile = new File(filePath);
+			deleteFile.delete();
 		}
-		else
-		{
-			return false;
-		}
-		
+		finally {UserTools.LogMethod("DeleteImage", meLogger, startMS, filePath);}
 	}
 	
-	public static void SaveMainImage(long userId, String sourceFilePath, String destinationFilePath, int targetWidth, int targetHeight) throws IOException, InterruptedException, IM4JavaException
+	public static boolean CheckForPortrait(String mainImagePath, Logger meLogger) throws IOException
+	{
+		long startMS = System.currentTimeMillis();
+		try
+		{
+			boolean portrait = false;
+			
+			BufferedImage img = ImageIO.read(new File(mainImagePath));
+			int height = img.getHeight();
+			int width = img.getWidth();
+			
+			double aspectRatio = (double)width / (double)height;
+			aspectRatio = UserTools.DoRound(aspectRatio,0);
+			if (aspectRatio < 1)
+				portrait = true;
+			
+			return portrait;
+		}
+		finally {UserTools.LogMethod("CheckForPortrait", meLogger, startMS, mainImagePath);}
+	}
+	
+	public static boolean SwitchHeightWidth(String mainImagePath, ImageMeta imageMeta, Logger meLogger) throws IOException
+	{
+		long startMS = System.currentTimeMillis();
+		try
+		{
+			int imageMetaWidth = imageMeta.getWidth().intValue();
+			int imageMetaHeight = imageMeta.getHeight().intValue();
+			
+			BufferedImage img = ImageIO.read(new File(mainImagePath));
+			int updatedHeight = img.getHeight();
+			int updatedWidth = img.getWidth();
+	
+			//Calculate aspect ratio or target image.
+			double updatedAspectRatio = (double)updatedWidth / (double)updatedHeight;
+			updatedAspectRatio = UserTools.DoRound(updatedAspectRatio,2);
+			
+			//Calculate aspect ratio of current image.
+			double originalAspectRatio = (double)imageMetaWidth / (double)imageMetaHeight;
+			originalAspectRatio = UserTools.DoRound(originalAspectRatio,2);
+			
+			if (updatedAspectRatio != originalAspectRatio)
+			{
+				//Switch them.
+				imageMeta.setHeight(imageMetaWidth);
+				imageMeta.setWidth(imageMetaHeight);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		finally {UserTools.LogMethod("SwitchHeightWidth", meLogger, startMS, mainImagePath);}
+	}
+	
+	public static void SaveMainImage(long userId, long imageId, String sourceFilePath, String destinationFilePath, int targetWidth, int targetHeight, Logger meLogger) throws IOException, InterruptedException, IM4JavaException
 	{
 		//Using the original image, save a JPEG version, correctly orientated with no EXIF
-		
-		//Build up GraphicMagick command.
-		GraphicsMagickCmd cmd = new GraphicsMagickCmd("convert");
-		IMOperation op = new IMOperation();
-		op.addImage(sourceFilePath);
-		op.autoOrient();
-		op.strip();
-		op.resize(targetWidth,targetHeight);
-		op.addImage(destinationFilePath);
-		cmd.run(op);
-		
-		//TODO add logic to ensure portrait orientated images get the max resolution.
-		
+		long startMS = System.currentTimeMillis();
+		try
+		{
+			//Build up GraphicMagick command.
+			GraphicsMagickCmd cmd = new GraphicsMagickCmd("convert");
+			IMOperation op = new IMOperation();
+			op.addImage(sourceFilePath);
+			op.autoOrient();
+			op.strip();
+			op.resize(targetWidth,targetHeight);
+			op.addImage(destinationFilePath);
+			cmd.run(op);
+			
+			//TODO add logic to ensure portrait orientated images get the max resolution.
+		}
+		finally {UserTools.LogMethod("SaveMainImage", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(imageId));}
 	}
 	
-	public static String SaveOriginal(long userId, String fromFilePath, String toFolderPath, long imageId, String extension) throws IOException, InterruptedException, IM4JavaException
-	{		
-		Path destinationFile = Paths.get(toFolderPath, imageId + "." + extension);
-
-		UserTools.Copyfile(fromFilePath, destinationFile.toString());
-		
-		return destinationFile.toString();
+	public static String SaveOriginal(long userId, String fromFilePath, String toFolderPath, long imageId, String extension, Logger meLogger) throws IOException, InterruptedException, IM4JavaException
+	{	
+		long startMS = System.currentTimeMillis();
+		try
+		{
+			Path destinationFile = Paths.get(toFolderPath, imageId + "." + extension);
+	
+			UserTools.Copyfile(fromFilePath, destinationFile.toString());
+			
+			return destinationFile.toString();
+		}
+		finally {UserTools.LogMethod("SaveOriginal", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(imageId));}
 	}
 	
-	public static void SaveReducedSizeImages(long userId, String sourceFilePath, String destinationFilePath, int targetWidth, int targetHeight) throws IOException, InterruptedException, IM4JavaException
+	public static void SaveReducedSizeImages(long userId, long imageId, String sourceFilePath, String destinationFilePath, int targetWidth, int targetHeight, Logger meLogger) throws IOException, InterruptedException, IM4JavaException
 	{
 		//Load image into memory, then save of JPEGs of particular sizes.
 		//50, 300, 800.  Square Dimensions.  Cropping required.
 		//800 and 1600.  Maintain aspect ratio.
-		
+		long startMS = System.currentTimeMillis();
 		BufferedImage img = null;
 		
-		img = ImageIO.read(new File(sourceFilePath));
-		int imageMetaHeight = img.getHeight();
-		int imageMetaWidth = img.getWidth();
-		
-		//int imageMetaWidth = imageMeta.getWidth().intValue();
-		//int imageMetaHeight = imageMeta.getHeight().intValue();
-		
-		GraphicsMagickCmd cmd = new GraphicsMagickCmd("convert");
-		
-		// create the operation, add images and operators/options
-		IMOperation op = new IMOperation();
-		op.addImage(sourceFilePath);
-		
-		//Calculate aspect ratio or target image.
-		double targetAspectRatio = (double)targetWidth / (double)targetHeight;
-		targetAspectRatio = UserTools.DoRound(targetAspectRatio,2);
-		
-		//Calculate aspect ratio of current image.
-		double currentAspectRatio = (double)imageMetaWidth / (double)imageMetaHeight;
-		currentAspectRatio = UserTools.DoRound(currentAspectRatio,2);
-		
-		if (targetWidth > imageMetaWidth || targetHeight > imageMetaHeight)
+		try
 		{
-			op.resize(targetWidth, targetHeight, "^");
-		}
-		
-		//Both target dimensions OK for a standard reduction is required.
-		
-		if (targetAspectRatio == currentAspectRatio)
-		{
-			//Same aspect, so just force a resize to the target dimensions
-			op.resize(targetWidth,targetHeight);
-		}
-		else if (targetAspectRatio > currentAspectRatio)
-		{
-			//Target is wider vs current.
-			//ie. a larger difference between width and height compared to current, so crop height.
+			img = ImageIO.read(new File(sourceFilePath));
+			int imageMetaHeight = img.getHeight();
+			int imageMetaWidth = img.getWidth();
 			
-			//Calculate best height for current to match target aspect ratio.
-			int newTempHeight = (int)Math.floor((double)imageMetaWidth / targetAspectRatio);
+			//int imageMetaWidth = imageMeta.getWidth().intValue();
+			//int imageMetaHeight = imageMeta.getHeight().intValue();
 			
-			//Calculate height padding to centralise crop.
-			int padding = (int) Math.floor((double)(imageMetaHeight - newTempHeight) / 2);
-
-			op.crop(imageMetaWidth, newTempHeight, 0, padding);
-		}
-		else
-		{
-			//Target is thinner vs current.
-			//Crop width.
-		
-			//Calculate best width for current to match target aspect ratio.
-			int newTempWidth = (int)Math.floor((double)imageMetaHeight * targetAspectRatio);
+			GraphicsMagickCmd cmd = new GraphicsMagickCmd("convert");
 			
-			//Calculate width padding for crop
-			int padding = (int)Math.floor((double)(imageMetaWidth - newTempWidth) / 2);
+			// create the operation, add images and operators/options
+			IMOperation op = new IMOperation();
+			op.addImage(sourceFilePath);
 			
-			op.crop(newTempWidth, imageMetaHeight, padding, 0);
-		}
-		
-		op.resize(targetWidth,targetHeight);
-
-		/*
-		//If both dimensions smaller, so just leave the image dimensions as-is.
-		
-		//Image size is less than the target size needed.  So just do what you can.
-		if (targetWidth < imageMetaWidth && targetHeight > imageMetaHeight)
-		{
-			//Image height is short.
-			op.resize(targetWidth,imageMetaHeight);
+			//Calculate aspect ratio or target image.
+			double targetAspectRatio = (double)targetWidth / (double)targetHeight;
+			targetAspectRatio = UserTools.DoRound(targetAspectRatio,2);
 			
-		}
-		
-		if (targetWidth > imageMetaWidth && targetHeight < imageMetaHeight)
-		{
-			//Image if too skinny, so just resize height
-			op.resize(targetWidth,imageMetaHeight);
-		}
-		*/
-
-		op.quality(90.0);
-		op.strip();
-
-		op.addImage(destinationFilePath);
-
-		cmd.run(op);
-		
+			//Calculate aspect ratio of current image.
+			double currentAspectRatio = (double)imageMetaWidth / (double)imageMetaHeight;
+			currentAspectRatio = UserTools.DoRound(currentAspectRatio,2);
+			
+			if (targetWidth > imageMetaWidth || targetHeight > imageMetaHeight)
+			{
+				op.resize(targetWidth, targetHeight, "^");
+			}
+			
+			//Both target dimensions OK for a standard reduction is required.
+			
+			if (targetAspectRatio == currentAspectRatio)
+			{
+				//Same aspect, so just force a resize to the target dimensions
+				op.resize(targetWidth,targetHeight);
+			}
+			else if (targetAspectRatio > currentAspectRatio)
+			{
+				//Target is wider vs current.
+				//ie. a larger difference between width and height compared to current, so crop height.
+				
+				//Calculate best height for current to match target aspect ratio.
+				int newTempHeight = (int)Math.floor((double)imageMetaWidth / targetAspectRatio);
+				
+				//Calculate height padding to centralise crop.
+				int padding = (int) Math.floor((double)(imageMetaHeight - newTempHeight) / 2);
 	
+				op.crop(imageMetaWidth, newTempHeight, 0, padding);
+			}
+			else
+			{
+				//Target is thinner vs current.
+				//Crop width.
+			
+				//Calculate best width for current to match target aspect ratio.
+				int newTempWidth = (int)Math.floor((double)imageMetaHeight * targetAspectRatio);
+				
+				//Calculate width padding for crop
+				int padding = (int)Math.floor((double)(imageMetaWidth - newTempWidth) / 2);
+				
+				op.crop(newTempWidth, imageMetaHeight, padding, 0);
+			}
+			
+			op.resize(targetWidth,targetHeight);
+	
+			/*
+			//If both dimensions smaller, so just leave the image dimensions as-is.
+			
+			//Image size is less than the target size needed.  So just do what you can.
+			if (targetWidth < imageMetaWidth && targetHeight > imageMetaHeight)
+			{
+				//Image height is short.
+				op.resize(targetWidth,imageMetaHeight);
+				
+			}
+			
+			if (targetWidth > imageMetaWidth && targetHeight < imageMetaHeight)
+			{
+				//Image if too skinny, so just resize height
+				op.resize(targetWidth,imageMetaHeight);
+			}
+			*/
+	
+			op.quality(90.0);
+			op.strip();
+	
+			op.addImage(destinationFilePath);
+	
+			cmd.run(op);
+		
+		}
+		finally {UserTools.LogMethod("SaveReducedSizeImages", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(imageId));}
 	}
 }
 

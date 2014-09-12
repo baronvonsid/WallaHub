@@ -65,12 +65,15 @@ public class GalleryViewer {
 			@RequestParam(value="key", required=false) String urlComplex,
 			@PathVariable("userName") String userName,
 			Model model,
-			HttpServletResponse httpResponse)
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		String responseJsp = "GalleryViewerError";
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryViewer request received, User: " + userName + ", Gallery:" + galleryName);}
+			response.addHeader("Cache-Control", "no-cache");
 
 			boolean securityPassed = false;
 			boolean useUrlComplex = false;
@@ -79,16 +82,23 @@ public class GalleryViewer {
 			if (urlComplex != null && urlComplex.length() == 36)
 				useUrlComplex = true;
 			
-			if (this.sessionState.getUserId() > 0 && userName.equalsIgnoreCase(this.sessionState.getProfileName()))
-			{
+			//CustomSessionState customSession = UserTools.GetValidSession(profileName, request, meLogger);
+			//if (customSession == null)
+			//{
+			//	responseCode = HttpStatus.UNAUTHORIZED.value();
+			//	return null;
+			//}
+			
+			//if (this.sessionState.getUserId() > 0 && userName.equalsIgnoreCase(this.sessionState.getProfileName()))
+			//{
 				securityPassed = true;
-				userId = this.sessionState.getUserId();
-			}
+				userId = 100001;
+			//}
 			
 			if (!securityPassed && !useUrlComplex)
 			{
 				Thread.sleep(3000);
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				response.setStatus(HttpStatus.UNAUTHORIZED.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryViewer request not authorised, User:" + userName.toString());}
 				return null;
 			}
@@ -99,7 +109,7 @@ public class GalleryViewer {
 				if (userId < 1)
 				{
 					Thread.sleep(3000);
-					httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+					response.setStatus(HttpStatus.UNAUTHORIZED.value());
 					if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryViewer request not authorised, User:" + userName.toString());}
 					return null;
 				}
@@ -143,6 +153,8 @@ public class GalleryViewer {
 			model.addAttribute("errorMessage", "Gallery could not be loaded.  Error message: " + ex.getMessage()); 
 			return responseJsp;
 		}
+		
+		
 	}
 	
 	//  GET /{userName}/gallery/{galleryName}/{sectionId}/{imageCursor}/{size}?preview=true
@@ -154,24 +166,21 @@ public class GalleryViewer {
 			@PathVariable("userName") String userName,
 			@PathVariable("imageCursor") int imageCursor,
 			@PathVariable("size") int size,
-			HttpServletRequest requestObject,
-			HttpServletResponse httpResponse)
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		Date clientVersionTimestamp = null;
 		
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryImageList request received, User:" + userName + ", Gallery: " + galleryName + " Section Id:" + sectionId);}
-		
+			response.addHeader("Cache-Control", "no-cache");
+
 			//Retrieve user id and check user is valid for the login.
-			long userId = UserTools.CheckUser(userName);
-			if (userId < 0)
-			{
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-				return;
-			}
+			long userId = 100001;
 			
-			long headerDateLong = requestObject.getDateHeader("If-Modified-Since");
+			long headerDateLong = request.getDateHeader("If-Modified-Since");
 			if (headerDateLong > 0)
 			{
 				clientVersionTimestamp = new Date(headerDateLong);
@@ -181,20 +190,20 @@ public class GalleryViewer {
 			
 			ImageList imageList = imageService.GetImageList(userId, "gallery", galleryName, sectionId, imageCursor, size, clientVersionTimestamp, customResponse);
 			
-			httpResponse.addHeader("Cache-Control", "no-cache");
-			httpResponse.setStatus(customResponse.getResponseCode());
+			response.addHeader("Cache-Control", "no-cache");
+			response.setStatus(customResponse.getResponseCode());
 			
 			if (customResponse.getResponseCode() == HttpStatus.OK.value())
 			{
 				Gallery gallery = galleryService.GetGalleryMeta(userId, galleryName, customResponse);
 				if (customResponse.getResponseCode() == HttpStatus.OK.value())
 				{
-				    PrintWriter out = httpResponse.getWriter();
+				    PrintWriter out = response.getWriter();
 				    WriteOutImageList(userName, out, gallery, imageList,false);
 				}
 				else
 				{
-					httpResponse.setStatus(customResponse.getResponseCode());
+					response.setStatus(customResponse.getResponseCode());
 				}
 			}
 			
@@ -202,7 +211,7 @@ public class GalleryViewer {
 		}
 		catch (Exception ex) {
 			meLogger.error("Received Exception in GetGalleryImageList", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 	}
 	
@@ -212,17 +221,21 @@ public class GalleryViewer {
 			@RequestParam(value="key", required=false) String galleryTempId,
 			@PathVariable("userName") String userName,
 			Model model,
-			HttpServletResponse httpResponse)
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		String responseJsp = "GalleryPreviewError";
+		
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreview request received, User: " + userName);}
+			response.addHeader("Cache-Control", "no-cache");
 
 			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				Thread.sleep(3000);
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				response.setStatus(HttpStatus.UNAUTHORIZED.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreview request not authorised, User:" + userName.toString());}
 				return null;
 			}
@@ -260,33 +273,35 @@ public class GalleryViewer {
 			@PathVariable("userName") String userName,
 			@PathVariable("imageCursor") int imageCursor,
 			@PathVariable("size") int size,
-			HttpServletRequest requestObject,
-			HttpServletResponse httpResponse)
+			HttpServletRequest request,
+			HttpServletResponse response)
 	{
+		long startMS = System.currentTimeMillis();
+		int responseCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 		try
 		{
-			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreviewImageList request received, User:" + userName + " Section Id:" + sectionId);}
-		
+			response.addHeader("Cache-Control", "no-cache");
+
 			if (this.sessionState.getUserId() < 1 || !userName.equalsIgnoreCase(this.sessionState.getProfileName()))
 			{
 				Thread.sleep(3000);
-				httpResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+				response.setStatus(HttpStatus.UNAUTHORIZED.value());
 				if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreviewImageList request not authorised, User:" + userName.toString());}
 			}
 			
 			ImageList imageList = imageService.GetPreviewImageList(sectionId, size);
 			Gallery gallery = this.sessionState.getGalleryPreview();
-		    PrintWriter out = httpResponse.getWriter();
+		    PrintWriter out = response.getWriter();
 			
 			WriteOutImageList(userName, out, gallery, imageList, true);
 			
-			httpResponse.setStatus(HttpStatus.OK.value());
+			response.setStatus(HttpStatus.OK.value());
 			
 			if (meLogger.isDebugEnabled()) {meLogger.debug("GetGalleryPreviewImageList completed, User:" + userName + " Section Id:" + sectionId);}
 		}
 		catch (Exception ex) {
 			meLogger.error("Received Exception in GetGalleryPreviewImageList", ex);
-			httpResponse.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		}
 	}
 	

@@ -1,6 +1,7 @@
 package walla.db;
 
 import javax.sql.DataSource;
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
@@ -45,6 +46,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 	
 	public void CreateGallery(long userId, Gallery newGallery, long newGalleryId, String urlComplex) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		String sql = "INSERT INTO [dbo].[Gallery] ([GalleryId],[Name],[Description],[UrlComplex],"
 				+ "[AccessType],[Password],[SelectionType],[GroupingType],[StyleId],[PresentationId],"
 				+ "[TotalImageCount],[LastUpdated],[RecordVersion],"
@@ -57,9 +59,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		
 		try {
 			int returnCount = 0;
-			
-			meLogger.debug("CreateGallery() begins. UserId:" + userId + " GalleryName:" + newGallery.getName());
-			
+
 			conn = dataSource.getConnection();
 			conn.setAutoCommit(false);
 			
@@ -96,33 +96,27 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			}
 			
 			UpdateGallerySubElements(conn, newGallery, newGalleryId);
-			
-			meLogger.debug("CreateGallery() ends. UserId:" + userId + " GalleryName:" + newGallery.getName());
-			
+
 			conn.commit();
-			
-			RegenerateGalleryImages(userId, newGalleryId);
 				
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in CreateGallery", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in CreateGallery", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("CreateGallery", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(newGalleryId));
 		}
 	}
 	
 	private void UpdateGallerySubElements(Connection conn, Gallery gallery, long galleryId) throws WallaException, SQLException
 	{
+		long startMS = System.currentTimeMillis();
 		PreparedStatement is = null;
 		try
 		{			
@@ -321,11 +315,13 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			if (is != null) 
 			try { if (is.isClosed() == false) {is.close();} } 
 			catch (SQLException logOrIgnore) {}
+			UserTools.LogMethod("UpdateGallerySubElements", meLogger, startMS, String.valueOf(galleryId));
 		}
 	}
 	
 	public void UpdateGallery(long userId, Gallery existingGallery) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		Statement ds = null;
@@ -377,30 +373,26 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			UpdateGallerySubElements(conn, existingGallery, existingGallery.getId());
 			
 			conn.commit();
-			
-			RegenerateGalleryImages(userId, existingGallery.getId());
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateGallery", sqlEx);
-			throw new WallaException(sqlEx, 0);
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
+			meLogger.error(sqlEx);
+			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+		} catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in UpdateGallery", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (ds != null) try { if (!ds.isClosed()) {ds.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("UpdateGallery", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	private void DeleteGallerySubElements(Connection conn, long galleryId) throws SQLException
 	{
+		long startMS = System.currentTimeMillis();
 		Statement ds = null;
 		
 		try
@@ -411,6 +403,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ds.addBatch("DELETE FROM [dbo].[GallerySort] WHERE [GalleryId] = " + galleryId);
 			ds.addBatch("DELETE FROM [dbo].[GalleryTag] WHERE [GalleryId] = " + galleryId);
 			ds.addBatch("DELETE FROM [dbo].[GallerySection] WHERE [GalleryId] = " + galleryId);
+			ds.addBatch("DELETE FROM [dbo].[GalleryImage] WHERE [GalleryId] = " + galleryId);
 			
 			//Execute statement and ignore counts.
 			ds.executeBatch();
@@ -418,14 +411,14 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		}
 		finally
 		{
-			if (ds != null) 
-			try { if (ds.isClosed() == false) {ds.close();} } 
-			catch (SQLException logOrIgnore) {}
+			if (ds != null) try { if (ds.isClosed() == false) {ds.close();} } catch (SQLException logOrIgnore) {}
+			UserTools.LogMethod("DeleteGallerySubElements", meLogger, startMS, String.valueOf(galleryId));
 		}
 	}
 	
 	public void DeleteGallery(long userId, long galleryId, int version, String galleryName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		Statement us = null;
@@ -456,8 +449,6 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 
 			DeleteGallerySubElements(conn, galleryId);
 			
-			//TODO Delete GalleryImages.
-			
 			String updateSql = "UPDATE [User] SET [GalleryLastDeleted] = dbo.GetDateNoMS() WHERE [UserId] = " + userId;
 			us = conn.createStatement();
 			returnCount = us.executeUpdate(updateSql);
@@ -475,26 +466,24 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		}
 		catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in DeleteGallery", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in DeleteGallery", ex);
-			throw new WallaException(ex, 0);
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (us != null) try { if (!us.isClosed()) {us.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("DeleteGallery", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(galleryId));
 		}
 	}
 	
 	public Date LastGalleryListUpdate(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -519,22 +508,20 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			return utilDate;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in LastGalleryListUpdate", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in LastGalleryListUpdate", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("LastGalleryListUpdate", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public Gallery GetGalleryMeta(long userId, String galleryName) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -588,23 +575,21 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			
 			return gallery;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleryMeta", sqlEx);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleryMeta", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleryMeta", meLogger, startMS, String.valueOf(userId) + " " + galleryName);
 		}
 	}
 	
 	private void GetGallerySubElements(long userId, Connection conn, Gallery gallery) throws WallaException, SQLException
 	{
+		long startMS = System.currentTimeMillis();
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
 		
@@ -717,11 +702,13 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		{
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
+			UserTools.LogMethod("GetGallerySubElements", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 
 	public long GetGalleryUserId(String userName, String galleryName, String urlComplex) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -749,26 +736,23 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			}
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleryUserId", sqlEx);
-			throw new WallaException(sqlEx,0);
+			meLogger.error(sqlEx);
+			return -1;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleryUserId", ex);
-			throw new WallaException(ex, 0);
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleryUserId", meLogger, startMS, userName);
 		}
 	}
 	
 	public GalleryList GetUserGalleryList(long userId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
-		GalleryList galleryList = null;
 		
 		try {			
 			conn = dataSource.getConnection();
@@ -788,12 +772,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			sQuery = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 			resultset = sQuery.executeQuery(selectSql);
 
-			if (galleryList == null)
-			{
-				galleryList = new GalleryList();
-				List<GalleryList.GalleryRef> temp = galleryList.getGalleryRef();
-			}
-			
+			GalleryList galleryList = new GalleryList();
 			long currentGalleryId = 0;
 			
 			while (resultset.next())
@@ -853,72 +832,20 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			return galleryList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetUserGalleryList", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetUserGalleryList", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetUserGalleryList", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
-	/*
-	//TODO Add search params + change image status
-	public int GetTotalImageCount(long galleryId) throws WallaException
-	{
-		Connection conn = null;
-		PreparedStatement ps = null;
-		ResultSet resultset = null;
-		
-		try {			
-			conn = dataSource.getConnection();
-
-			String selectSql = "SELECT COUNT(*) "
-								+ "FROM GalleryImage gi INNER JOIN Image i ON gi.ImageId = i.ImageId "
-								+ "WHERE t=gi.[GalleryId] = ? AND i.Status = 1";
-			
-			ps = conn.prepareStatement(selectSql);
-			ps.setLong(1, galleryId);
-			
-			resultset = ps.executeQuery();
-			if (resultset.next())
-			{
-				return resultset.getInt(1);
-			}
-			else
-			{
-				String error = "Select statement didn't return any records, in GetTotalImageCount.";
-				meLogger.error(error);
-				throw new WallaException("GalleryDataHelperImpl", "GetTotalImageCount", error, 0); 
-			}
-		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetTotalImageCount", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetTotalImageCount", ex);
-			throw new WallaException(ex, 0);
-		}
-		finally {
-			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
-			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
-	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
-		}
-	}
-	*/
-	
-	// TODO Add search,sort facility
 	public void GetGalleryImages(long userId, int imageCursor, int imageCount, ImageList galleryImageList) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -1003,33 +930,25 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			}
 			resultset.close();
 			
-			if (galleryImageList.getImages().getImageRef().size() == 0)
-			{
-				meLogger.info("Select statement didn't return any records.");
-				//throw new WallaException("GalleryDataHelperImpl", "GetGalleryImages", error, 0); 
-			}
-			
 			galleryImageList.setImageCursor(imageCursor);
 			galleryImageList.setImageCount(galleryImageList.getImages().getImageRef().size());
 			
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleryImages", sqlEx);
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleryImages", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleryImages", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 	
 	public ImageList GetGalleryImageListMeta(long userId, String galleryName, long sectionId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		PreparedStatement ps = null;
 		ResultSet resultset = null;
@@ -1065,7 +984,7 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 				resultset.close();
 				String error = "Select statement didn't return any records.";
 				meLogger.error(error);
-				throw new WallaException("GalleryDataHelperImpl", "GetGalleryImageListMeta", error, 0); 
+				return null;
 			}
 			
 			galleryImageList = new ImageList();
@@ -1088,56 +1007,49 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			resultset.close();
 			return galleryImageList;
 		}
-		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetGalleryImageListMeta", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
+		catch (SQLException | DatatypeConfigurationException sqlEx) {
+			meLogger.error(sqlEx);
+			return null;
 		} 
-		catch (WallaException wallaEx) {
-			throw wallaEx;
-		}
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetGalleryImageListMeta", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 			if (ps != null) try { if (!ps.isClosed()) {ps.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGalleryImageListMeta", meLogger, startMS, String.valueOf(userId) + " " + galleryName);
 		}
 	}
 	
 	public void RegenerateGalleryImages(long userId, long galleryId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		CallableStatement idSproc = null;
 		try {
+			
 			conn = dataSource.getConnection();
-
+			conn.setAutoCommit(true);
+			
 			String sprocSql = "EXEC [dbo].[GenerateGalleryImages] ?, ?";
 			
 		    idSproc = conn.prepareCall(sprocSql);
 		    idSproc.setLong(1, userId);
 		    idSproc.setLong(2, galleryId);
 		    idSproc.execute();
-		    
-		    conn.commit();
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in RegenerateGalleryImages", sqlEx);
+			meLogger.error(sqlEx);
 			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
 		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in RegenerateGalleryImages", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
-		}
 		finally {
 	        if (idSproc != null) try { idSproc.close(); } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("RegenerateGalleryImages", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(galleryId));
 		}
 	}
 
 	public Gallery GetGallerySections(long userId, Gallery requestGallery, long tempGalleryId) throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		String tagSql = "INSERT INTO [dbo].[TempGalleryTag] ([TempGalleryId],[TagId],[UserId]) VALUES (?,?,?)";
 		String categorySql = "INSERT INTO [dbo].[TempGalleryCategory] ([TempGalleryId],[CategoryId],[Recursive],[UserId]) VALUES (?,?,?,?)";
 		
@@ -1151,9 +1063,6 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 		int controlCount = 0;
 
 		try {
-			
-			meLogger.debug("GetGallerySections() begins. UserId:" + userId);
-			
 			responseGallery = new Gallery();
 			responseGallery.setSections(new Gallery.Sections());
 			
@@ -1207,11 +1116,9 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			//Perform updates.
 			if (controlCount != ps.executeBatch().length)
 			{
-				//TODO raise error
 				conn.rollback();
-				String error = "Insert sections statement didn't the correct success count.";
-				meLogger.error(error);
-				throw new WallaException(this.getClass().getName(), "GetGallerySections", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 	
+				meLogger.error("Insert sections statement didn't the correct success count.");
+				return null;	
 			}
 			
 			String executeSql = "SELECT SectionId, SectionName, SectionDesc FROM [dbo].[GenerateGallerySectionsTemp]"
@@ -1242,31 +1149,26 @@ public class GalleryDataHelperImpl implements GalleryDataHelper {
 			ds.executeBatch();
 			ds.close();
 
-			meLogger.debug("GetGallerySections() ends. UserId:" + userId);
-			
 			conn.commit();
 				
 			return responseGallery;
 			
 		} catch (SQLException sqlEx) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected SQLException in GetGallerySections", sqlEx);
-			throw new WallaException(sqlEx,HttpStatus.INTERNAL_SERVER_ERROR.value());
-		} catch (WallaException wallaEx) {
-			throw wallaEx;
+			meLogger.error(sqlEx);
+			return null;
 		}
 		catch (Exception ex) {
 			if (conn != null) { try { conn.rollback(); } catch (SQLException ignoreEx) {} }
-			meLogger.error("Unexpected Exception in GetGallerySections", ex);
-			throw new WallaException(ex, HttpStatus.INTERNAL_SERVER_ERROR.value());
+			throw ex;
 		}
 		finally {
 	        if (ps != null) try { ps.close(); } catch (SQLException logOrIgnore) {}
 	        if (ds != null) try { ds.close(); } catch (SQLException logOrIgnore) {}
 	        if (gs != null) try { gs.close(); } catch (SQLException logOrIgnore) {}
 	        if (resultset != null) try { resultset.close(); } catch (SQLException logOrIgnore) {}
-	        
 	        if (conn != null) try { conn.close(); } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetGallerySections", meLogger, startMS, String.valueOf(userId));
 		}
 	}
 }

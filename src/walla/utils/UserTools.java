@@ -29,22 +29,6 @@ import org.springframework.http.HttpStatus;
 
 public final class UserTools {
 
-	
-	public static long CheckUser(String userName) throws InterruptedException
-	{
-		//Check user is logged on and return user Id.
-		
-		if (userName.equals("simon2345"))
-		{
-			Thread.sleep(5000);
-			return -1;
-		}
-		else
-		{
-			return 100001;
-		}
-	}
-	
 	public static void Copyfile(String sourceFile, String destinationFile) throws IOException
 	{
 		  File f1 = new File(sourceFile);
@@ -131,6 +115,7 @@ public final class UserTools {
 		{
 			//Capture error and suppress subsequent error bubbling.
 			meLogger.error("File failed to be moved.  Source:" + sourceFile + "  Destination:" + destinationFile + " Error received:" + ex.getMessage());
+			throw ex;
 		}
 	}
 
@@ -160,48 +145,6 @@ public final class UserTools {
 		UUID identifier = java.util.UUID.randomUUID();
 		return identifier.toString().replace("-", "").toUpperCase();
 	}
-	
-	/*
-	public static String GetCssName(int styleId)
-	{
-		String cssName = null;
-		
-		switch (styleId)
-		{
-			case 0:
-				cssName = "darkness";
-				break;
-			case 1:
-				cssName = "lightness";
-				break;
-			case 2:
-				cssName = "cupertino";
-				break;
-			case 3:
-				cssName = "blacktie";
-				break;
-		}
-		return cssName;
-	}
-	
-	
-	public static String GetJspName(int presentationId)
-	{
-		String jspName = null;
-		
-		switch (presentationId)
-		{
-			case 0:
-				jspName = "GalleryViewer-Standard";
-				break;
-			case 1:
-				jspName = "GalleryViewer-Lightbox";
-				break;
-		}
-		return jspName;
-		
-	}
-	*/
 	
 	public static Gallery.Sections.SectionRef GetExampleSections(int count)
 	{
@@ -357,9 +300,7 @@ public final class UserTools {
 			meLogger.warn("IP address of the session has changed since the logon key was issued.");
 			return false;
 		}
-		
 
-		
 		//TODO add isHuman check.
 		
 		return true;

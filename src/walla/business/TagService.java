@@ -36,22 +36,17 @@ public class TagService {
 	
 	public int CreateUpdateTag(long userId, Tag newtag, String tagName)
 	{
-		try {
-			
-			meLogger.debug("CreateUpdateTag() begins. UserId:" + userId + " TagName:" + tagName);
-			
-			//TODO Check User is logged in with Write permission
-			//HttpStatus.UNAUTHORIZED.value()
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			Tag existingTag = tagDataHelper.GetTagMeta(userId, tagName);
 
 			if (existingTag == null)
 			{
 				if (!newtag.getName().equals(tagName))
 				{
-					String error = "Create Tag failed, names don't match.";
-					meLogger.error(error);
-					throw new WallaException("TagService", "CreateUpdateTag", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Create Tag failed, names don't match.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				long newTagId = utilityDataHelper.GetNewId("TagId");
@@ -62,14 +57,11 @@ public class TagService {
 			{
 				if (existingTag.getVersion() != newtag.getVersion())
 				{
-					String error = "Update Tag failed, record versions don't match.";
-					meLogger.error(error);
-					throw new WallaException("TagService", "CreateUpdateTag", error, HttpStatus.CONFLICT.value()); 
+					meLogger.warn("Update Tag failed, record versions don't match.");
+					return HttpStatus.CONFLICT.value(); 
 				}
 				
 				tagDataHelper.UpdateTag(userId, newtag);
-				
-				meLogger.debug("CreateUpdateTag() has completed. UserId:" + userId);
 				
 				if (!existingTag.getName().equals(tagName))
 				{
@@ -82,92 +74,85 @@ public class TagService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process CreateUpdateTag");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces CreateUpdateTag", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("CreateUpdateTag", meLogger, startMS, String.valueOf(userId) + " " + tagName);}
 	}
 
 	public int DeleteTag(long userId, Tag tag, String tagName)
 	{
-		try {
-			meLogger.debug("DeleteTag() begins. UserId:" + userId + " TagName:" + tagName);
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			if (!tag.getName().equals(tagName))
 			{
-				String error = "Delete Tag failed, names don't match.";
-				meLogger.error(error);
-				throw new WallaException("TagService", "DeleteTag", error, HttpStatus.CONFLICT.value()); 
+				meLogger.warn("Delete Tag failed, names don't match.");
+				return HttpStatus.CONFLICT.value(); 
 			}
 			
 			tagDataHelper.DeleteTag(userId, tag.getId(), tag.getVersion(), tagName);
-			
-			meLogger.debug("DeleteTag() has completed. UserId:" + userId);
-			
+
 			//TODO decouple method
 			TagRippleDelete(userId, tag.getId());
 			
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process DeleteTag");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces DeleteTag", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
+		finally {UserTools.LogMethod("DeleteTag", meLogger, startMS, String.valueOf(userId) + " " + tagName);}
 	}
 	
 	public Tag GetTagMeta(long userId, String tagName, CustomResponse customResponse)
 	{
-		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetTagMeta() begins. UserId:" + userId + " TagName:" + tagName);
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			//Get tag list for response.
 			Tag tag = tagDataHelper.GetTagMeta(userId, tagName);
 			if (tag == null)
 			{
-				String error = "GetTagMeta didn't return a valid Tag object";
-				meLogger.error(error);
-				throw new WallaException("TagService", "GetTagMeta", error, 0); 
+				meLogger.warn("GetTagMeta didn't return a valid Tag object");
+				customResponse.setResponseCode(HttpStatus.BAD_REQUEST.value());
+				return null;
 			}
-			
-			meLogger.debug("GetTagMeta has completed. UserId:" + userId);
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
 			return tag;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetTagMeta", wallaEx);
 			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to process GetTagMeta",ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetTagMeta", meLogger, startMS, String.valueOf(userId) + " " + tagName);}
 	}
 	
 	public TagList GetTagListForUser(long userId, Date clientVersionTimestamp, CustomResponse customResponse)
 	{
-		try {
-			//Check user can access tag list
-			//HttpStatus.UNAUTHORIZED.value()
-			
-			meLogger.debug("GetTagListForUser() begins. UserId:" + userId);
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			TagList tagList = null;
 			Date lastUpdate = tagDataHelper.LastTagListUpdate(userId);
-			
-			//lastUpdate.setTime(1000 * (lastUpdate.getTime() / 1000));
+			if (lastUpdate == null)
+			{
+				meLogger.warn("Last updated date for tag could not be retrieved.");
+				customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+				return null;
+			}
 			
 			//Check if tag list changed
 			if (clientVersionTimestamp != null)
@@ -182,7 +167,6 @@ public class TagService {
 			
 			//Get tag list for response.
 			tagList = tagDataHelper.GetUserTagList(userId);
-			
 			if (tagList != null)
 			{
 				GregorianCalendar gregory = new GregorianCalendar();
@@ -193,53 +177,48 @@ public class TagService {
 			}
 			
 			customResponse.setResponseCode(HttpStatus.OK.value());
-			
-			meLogger.debug("GetTagListForUser has completed. UserId:" + userId);
+
 			return tagList;
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process GetTagListForUser");
-			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+			customResponse.setResponseCode(wallaEx.getCustomStatus());
 			return null;
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces GetTagListForUser", ex);
+			meLogger.error(ex);
 			customResponse.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			return null;
 		}
+		finally {UserTools.LogMethod("GetTagListForUser", meLogger, startMS, String.valueOf(userId));}
 	}
 
 	public int AddRemoveTagImages(long userId, String tagName, ImageIdList moveList, boolean add)
 	{
-		try {
-			meLogger.debug("AddRemoveTagImages() begins. UserId:" + userId + " TagName:" + tagName);
-			
+		long startMS = System.currentTimeMillis();
+		try 
+		{
 			Tag tag = tagDataHelper.GetTagMeta(userId, tagName);
 			if (tag == null)
 			{
-				String error = "AddRemoveTagImages didn't return a valid Tag object";
-				meLogger.error(error);
-				throw new WallaException("TagService", "AddRemoveTagImages", error, HttpStatus.INTERNAL_SERVER_ERROR.value()); 
+				meLogger.warn("AddRemoveTagImages didn't return a valid Tag object");
+				return HttpStatus.INTERNAL_SERVER_ERROR.value(); 
 			}
 			
 			tagDataHelper.AddRemoveTagImages(userId, tag.getId(), moveList, add);
-			
-			meLogger.debug("AddRemoveTagImages() has completed. UserId:" + userId);
-			
+
 			//TODO decouple method
 			TagRippleUpdate(userId, tag.getId());
 			
 			return HttpStatus.OK.value();
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process AddRemoveTagImages");
 			return wallaEx.getCustomStatus();
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces AddRemoveTagImages", ex);
+			meLogger.error(ex);
 			return HttpStatus.INTERNAL_SERVER_ERROR.value();
 		}
-		
+		finally {UserTools.LogMethod("AddRemoveTagImages", meLogger, startMS, String.valueOf(userId) + " " + tagName);}
 	}
 	
 	public long CreateOrFindUserAppTag(long userId, int platformId, String machineName) throws WallaException
@@ -289,6 +268,7 @@ public class TagService {
 	
 	public void ReGenDynamicTags(long userId)
 	{
+		long startMS = System.currentTimeMillis();
 		try
 		{
 			//Returns an array of affected tags.
@@ -305,16 +285,17 @@ public class TagService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process ReGenDynamicTags");
+			meLogger.error("ReGenDynamicTags failed with an error");
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces ReGenDynamicTags", ex);
+			meLogger.error("ReGenDynamicTags failed with an error", ex);
 		}
+		finally {UserTools.LogMethod("ReGenDynamicTags", meLogger, startMS, String.valueOf(userId));}
 	}
 	
-	//Must aggregate up requests
  	public void TagRippleUpdate(long userId, long tagId)
 	{
+ 		long startMS = System.currentTimeMillis();
 		try
 		{
 			//Update tag updated dates
@@ -329,22 +310,24 @@ public class TagService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process TagRippleUpdates");
+			meLogger.error("TagRippleUpdate failed with an error");
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces TagRippleUpdates", ex);
+			meLogger.error("TagRippleUpdate failed with an error", ex);
 		}
+		finally {UserTools.LogMethod("TagRippleUpdate", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(tagId));}
 	}
  	
  	public void TagRippleDelete(long userId, long tagId)
  	{
+ 		long startMS = System.currentTimeMillis();
 		try
 		{
 			//Find any views which reference this tag and update last updated.
 			long[] galleryIds = tagDataHelper.GetGalleriesLinkedToTag(userId, tagId);
 			
 			//Update tag updated dates
-			tagDataHelper.DeleteTagReferences(tagId);
+			tagDataHelper.DeleteTagReferences(userId, tagId);
 			
 			for (int i = 0; i < galleryIds.length; i++)
 			{
@@ -353,11 +336,12 @@ public class TagService {
 			}
 		}
 		catch (WallaException wallaEx) {
-			meLogger.error("Unexpected error when trying to process TagDeleteTagImages");
+			meLogger.error("TagRippleDelete failed with an error");
 		}
 		catch (Exception ex) {
-			meLogger.error("Unexpected error when trying to proces TagDeleteTagImages", ex);
+			meLogger.error("TagRippleDelete failed with an error", ex);
 		}
+		finally {UserTools.LogMethod("TagRippleDelete", meLogger, startMS, String.valueOf(userId) + " " + String.valueOf(tagId));}
  	}
 	
 	public void setTagDataHelper(TagDataHelperImpl tagDataHelper)

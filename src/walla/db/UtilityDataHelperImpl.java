@@ -32,10 +32,10 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 	private DataSource dataSource;
 	
 	private static final Logger meLogger = Logger.getLogger(UtilityDataHelperImpl.class);
-	
-	//To be refactored!!!
+
 	public List<Platform> GetPlatformList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -63,34 +63,25 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				platformList.add(platform);
 			}
 			resultset.close();
-			
-			if (platformList.size() < 1)
-			{
-				String error = "GetPlatformObjects didn't return any records";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetPlatformObjects", error, 0);
-			}
-			
+
 			return platformList;
 			
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetPlatformObjects", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetPlatformObjects", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetPlatformList", meLogger, startMS, "");
 		}
 	}
 
 	public List<App> GetAppList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -121,33 +112,24 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				appList.add(app);
 			}
 			resultset.close();
-			
-			if (appList.size() < 1)
-			{
-				String error = "GetAppList didn't return any records";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetAppList", error, 0);
-			}
-			
+
 			return appList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetAppList", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetAppList", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetAppList", meLogger, startMS, "");
 		}
 	}
 	
 	public List<Style> GetStyleList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -174,32 +156,23 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			resultset.close();
 			
-			if (styleList.size() < 1)
-			{
-				String error = "GetStyleList didn't return any records";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetStyleList", error, 0);
-			}
-			
 			return styleList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetStyleList", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetStyleList", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetStyleList", meLogger, startMS, "");
 		}
 	}
 	
 	public List<Presentation> GetPresentationList() throws WallaException
 	{
+		long startMS = System.currentTimeMillis();
 		Connection conn = null;
 		Statement sQuery = null;
 		ResultSet resultset = null;
@@ -241,35 +214,21 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 				presentationList.add(presentation);
 			}
 			resultset.close();
-			
-			if (presentationList.size() < 1)
-			{
-				String error = "GetPresentationList didn't return any records";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetPresentationList", error, 0);
-			}
-			
+
 			return presentationList;
 		}
 		catch (SQLException sqlEx) {
-			meLogger.error("Unexpected SQLException in GetPresentationList", sqlEx);
-			throw new WallaException(sqlEx,0);
-		} 
-		catch (Exception ex) {
-			meLogger.error("Unexpected Exception in GetPresentationList", ex);
-			throw new WallaException(ex, 0);
+			meLogger.error(sqlEx);
+			return null;
 		}
 		finally {
 			if (resultset != null) try { if (!resultset.isClosed()) {resultset.close();} } catch (SQLException logOrIgnore) {}
 	        if (sQuery != null) try { if (!sQuery.isClosed()) {sQuery.close();} } catch (SQLException logOrIgnore) {}
 	        if (conn != null) try { if (!conn.isClosed()) {conn.close();} } catch (SQLException logOrIgnore) {}
+	        UserTools.LogMethod("GetPresentationList", meLogger, startMS, "");
 		}
 	}
-	
-	
-	
-	
-	//***** re-factored!!!  All below.
+
 	public long GetNewId(String idType) throws WallaException
 	{
 		long startMS = System.currentTimeMillis();
@@ -328,9 +287,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			else
 			{
-				String error = "Select statement didn't return any records";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetInt", error, HttpStatus.BAD_REQUEST.value()); 
+				return -1;
 			}
 		}
 		catch (SQLException sqlEx) {
@@ -365,9 +322,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			else
 			{
-				String error = "Select statement didn't return any records.";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetLong", error, HttpStatus.BAD_REQUEST.value()); 
+				return -1;
 			}
 		} 
 		catch (SQLException sqlEx) {
@@ -401,9 +356,7 @@ public class UtilityDataHelperImpl implements UtilityDataHelper{
 			}
 			else
 			{
-				String error = "Select statement didn't return any records, in GetInt.";
-				meLogger.error(error);
-				throw new WallaException("UtilityDataHelperImpl", "GetString", error, HttpStatus.BAD_REQUEST.value()); 
+				return null;
 			}
 		}
 		catch (SQLException sqlEx) {
